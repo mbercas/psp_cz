@@ -3,14 +3,11 @@
 """parses all the steneoprotocols of the parlament and creates
 text files tagged the following way
 
-p_[/d]*2-[/d]*2_<yyyymmdd>_[/d]*2-[/d]*3_<>str>.txt
-
-p         for porad
-[/d]*2    two digits indicating the session
-[/d]*2    for sessions spanning over multiple days indicates the order of the sub-session
-yyyymmdd  date string
-[/d]*2    order of the day point index
-[/d]*3    intervention index
+s_[/d]*2_b[/d]*2_i[/d]*3_<str>.txt
+         
+s_[/d]*2    two digits indicating the session
+b_[/d]*2    order of the day point index
+i_[/d]*3    intervention index
 <str>     name of the speaker
 """
 
