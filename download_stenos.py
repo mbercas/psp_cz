@@ -6,9 +6,9 @@ text files tagged the following way
 s_[/d]*2_b[/d]*2_i[/d]*3_<str>.txt
          
 s_[/d]*2    two digits indicating the session
-b_[/d]*2    order of the day point index
+b[/d]+      order of the day point index
 i_[/d]*3    intervention index
-<str>     name of the speaker
+<str>       name of the speaker
 """
 
 
