@@ -17,7 +17,8 @@ import re
 import logging
 from bs4 import BeautifulSoup
 import requests
-
+import argparse
+from pathlib import Path
 
 class SessionManager:
     __slots__ = ['valid', 'title', 'index', 'date', 'base_session_url']
@@ -185,21 +186,26 @@ class SessionParser:
         text = text.replace('\xa0', ' ')
         return text
     
-    def generate_files(self):
+    def generate_files(self, output_directory=Path('.')):
         """Iterate the topics dictionary to get all the intrventions per
         topic, then go to the stenos dictionary to print get intervention"""
+        if not output_directory.exists():
+            output_directory.mkdir(parents=True)
+        
+        
         for topic_id, topic in self.topics.items():
             for idx, intervention in enumerate(topic):
                 try:
                     steno = self.stenos[intervention[1]][intervention[2]]
-                    file_name = 'c:\Temp\s_{0}_{1}_i_{2:0>2}_{3}.txt'.format(self.session_number, topic_id, idx+1, steno[0])    
-                    with open(file_name, 'w', encoding = 'utf-8') as fd:
+                    file_name = output_directory.joinpath(
+                        's_{0}_{1:0>2}_i_{2:0>2}_{3}.txt'.format(self.session_number,
+                                                                 topic_id,
+                                                                 idx+1, steno[0]))    
+                    with file_name.open('w', encoding = 'utf-8') as fd:
                         fd.write(steno[1])
                 except KeyError:
                     logging.error("Can not find key %s in steno %s",intervention[2],intervention[1])
  
-                
-            
 
 
     def parse_sublink_order(self, order_id, sublink):
@@ -313,6 +319,17 @@ if __name__ == "__main__":
     base_page_url = 'http://public.psp.cz/eknih/2013ps/stenprot/'
     steno_page_url = base_page_url + 'index.htm'
 
+
+    parser = argparse.ArgumentParser(description='Download steno-protocols in psp.cz')
+    parser.add_argument('--index', action='store_true', default=False,
+                        dest='generate_index',
+                        help='generate an index for the files')
+    parser.add_argument('-o', '--output-dir',action='store', default='.',
+                        dest='output_directory',
+                        help='output directory')
+                        
+    args = parser.parse_args()
+    
     res = requests.get(steno_page_url)
     if check_request(res) == False:
         exit(-1)
@@ -333,4 +350,5 @@ if __name__ == "__main__":
         
         session = SessionParser(base_page_url, schuz_id.group(1), link)
         session.parse_session()
-        session.generate_files()
+        session.generate_files(Path(args.output_directory))
+        break 
