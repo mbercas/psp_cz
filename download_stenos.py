@@ -12,7 +12,7 @@ i_[/d]*3    intervention index
 """
 
 
-import os
+import os, sys
 import re
 import logging
 from bs4 import BeautifulSoup
@@ -316,9 +316,6 @@ if __name__ == "__main__":
 
     #logging.basicConfig(filename='download_steno.log', level=logging.DEBUG)
     
-    base_page_url = 'http://public.psp.cz/eknih/2013ps/stenprot/'
-    steno_page_url = base_page_url + 'index.htm'
-
 
     parser = argparse.ArgumentParser(description='Download steno-protocols in psp.cz')
     parser.add_argument('--index', action='store_true', default=False,
@@ -327,8 +324,22 @@ if __name__ == "__main__":
     parser.add_argument('-o', '--output-dir',action='store', default='.',
                         dest='output_directory',
                         help='output directory')
+    parser.add_argument('-y', '--year', action='store', default='2017',
+                        dest='year',
+                        help='session year (2013 or 2017)')
                         
     args = parser.parse_args()
+
+
+    
+    if args.year in ["2013", "2017"]:
+        year = args.year # 2013 or 2017
+    else:
+        print("Invalid session year, valid years are 2013 and 2017")
+        sys.exit(-1)
+    base_page_url = 'http://public.psp.cz/eknih/{}ps/stenprot/'.format(year)
+    steno_page_url = base_page_url + 'index.htm'
+
     
     res = requests.get(steno_page_url)
     if check_request(res) == False:
@@ -351,4 +362,3 @@ if __name__ == "__main__":
         session = SessionParser(base_page_url, schuz_id.group(1), link)
         session.parse_session()
         session.generate_files(Path(args.output_directory))
-        break 
