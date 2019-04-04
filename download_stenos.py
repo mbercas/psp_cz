@@ -68,9 +68,11 @@ class SessionParser:
         self.sublinks = base_url + session_number + "schuz/"
         self.session_link = base_url + session_link
         self.session_number = session_number
+        self.session_soup = None
         self.pages = {}    # pages link stenos and order them by topic
         self.stenos = {}
         self.topics = {}
+        self.topic_titles = {}
         self.interventions = {}
         
     def parse_session(self):
@@ -80,7 +82,7 @@ class SessionParser:
         they are stored in different pages), we will transverse the session following
         the links in the session record (Schuz)
 
-        Returns False if ti fails processing the Schuz
+        Returns False if ti fails processing the session (Schuz)
 
         session -> topic -> intervention
 
@@ -92,6 +94,7 @@ class SessionParser:
         if False == check_request(res):
             return False
         main_soup =  BeautifulSoup(res.text, 'html5lib')
+        self.session_soup = main_soup
 
         # All topics are between <p>...</p>
         for topic in main_soup.find_all('p'):
@@ -109,7 +112,8 @@ class SessionParser:
             
             if topic_id not in self.topics:
                 self.topics[topic_id] = []
-
+                self.topic_titles[topic_id] = links[0].next_sibling.text
+            
             
             for link in links[1:]:
                 try:
@@ -167,6 +171,7 @@ class SessionParser:
                 if speaker_link.has_attr('id'):
                     r_id = speaker_link['id']
                     speaker = speaker_link.text.replace(' ', '_')
+                    speaker = speaker.replace(',', '_')
                     speaker_link.extract()
                 else:
                     speaker_link.extract()
@@ -198,9 +203,10 @@ class SessionParser:
                 try:
                     steno = self.stenos[intervention[1]][intervention[2]]
                     file_name = output_directory.joinpath(
-                        's_{0}_{1:0>2}_i_{2:0>2}_{3}.txt'.format(self.session_number,
-                                                                 topic_id,
-                                                                 idx+1, steno[0]))    
+                        's_{0}_{1}_{2:0>2}_i_{3:0>2}_{4}.txt'.format(self.session_number,
+                                                                    intervention[3],
+                                                                    topic_id,
+                                                                    idx+1, steno[0]))    
                     with file_name.open('w', encoding = 'utf-8') as fd:
                         fd.write(steno[1])
                 except KeyError:
@@ -233,12 +239,12 @@ class SessionParser:
                 logging.error("Can not find date in steno %s", link)
                 return False
             page.date_string = date
-            self.parse_interventions_page(page.soup)
+            self.parse_interventions_page(page.soup, date)
             self.pages[page_idx] = page
 
         return True
 
-    def parse_interventions_page(self, page_soup):
+    def parse_interventions_page(self, page_soup, date):
         """Get a list of all the q tags and all the a links below"""
         a_links = page_soup.find_all('a')
         
@@ -254,7 +260,7 @@ class SessionParser:
             elif link.has_attr('href') and q_id != "":
                 info = intervention_link.search(link['href'])
                 if None != info:
-                    self.interventions[q_id].append([info.group(0), info.group(1), info.group(2)])
+                    self.interventions[q_id].append([info.group(0), info.group(1), info.group(2), date])
                 
                 
                 
@@ -371,3 +377,4 @@ if __name__ == "__main__":
         session = SessionParser(base_page_url, session_id.group(1), link)
         session.parse_session()
         session.generate_files(Path(args.output_directory))
+        break
