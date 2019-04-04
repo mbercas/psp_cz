@@ -312,11 +312,10 @@ def check_request(res):
         rc = False
     return rc
 
-if __name__ == "__main__":
-
-    #logging.basicConfig(filename='download_steno.log', level=logging.DEBUG)
-    
-
+def parse_args():
+    """Parses and validates the command line arguments
+    :rtype: argparser.args object
+    """
     parser = argparse.ArgumentParser(description='Download steno-protocols in psp.cz')
     parser.add_argument('--index', action='store_true', default=False,
                         dest='generate_index',
@@ -330,35 +329,45 @@ if __name__ == "__main__":
                         
     args = parser.parse_args()
 
+    if args.year not in ["2013", "2017"]:
+        print("Invalid session year, valid years are 2013 and 2017")
+        logging.error("(): Invalid session year".format(args.year))
+        sys.exit(-1)
+
+    return args
+
+if __name__ == "__main__":
+
+    #logging.basicConfig(filename='download_steno.log', level=logging.DEBUG)
+    
+
+    args = parse_args()
+    year = args.year # 2013 or 2017
 
     
-    if args.year in ["2013", "2017"]:
-        year = args.year # 2013 or 2017
-    else:
-        print("Invalid session year, valid years are 2013 and 2017")
-        sys.exit(-1)
     base_page_url = 'http://public.psp.cz/eknih/{}ps/stenprot/'.format(year)
     steno_page_url = base_page_url + 'index.htm'
 
     
     res = requests.get(steno_page_url)
     if check_request(res) == False:
+        logging.error("Can not connect to page: {}".format(steno_page_url))
         exit(-1)
 
     # get the links for all session pages
     #
-    schuz_links = get_all_stenos(res.text)
+    session_links = get_all_stenos(res.text)
 
-
+    
     m = re.compile('^([\d]+)schuz/index.htm$')
     
-    for link  in schuz_links:
+    for link  in session_links:
         
-        schuz_id = m.match(link)
-        if schuz_id == None:
+        session_id = m.match(link)
+        if session_id == None:
             logging.error("Can not get session number from link %s", link)
             continue
         
-        session = SessionParser(base_page_url, schuz_id.group(1), link)
+        session = SessionParser(base_page_url, session_id.group(1), link)
         session.parse_session()
         session.generate_files(Path(args.output_directory))
