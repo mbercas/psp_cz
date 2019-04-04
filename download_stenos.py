@@ -1,15 +1,27 @@
 #!/usr/bin/env python3
 
-"""parses all the steneoprotocols of the parlament and creates
+"""
+.. module:: download_stenos
+
+   :synopsis: Parses all the steneoprotocols of the parlament and creates
 text files tagged the following way
 
-s_[/d]*2_b[/d]*2_i[/d]*3_<str>.txt
+    s_<ddd>_<yyyymmdd>_b<d+>_i_<ddd>_<name_str>.txt
          
-s_[/d]*2    two digits indicating the session
-b[/d]+      order of the day point index
-i_[/d]*3    intervention index
-<str>       name of the speaker
+    - s_<ddd>        theee digits indicating the session
+    - <yyyymmdd>     date of the intervention
+    - b<d+>          order of the day point index
+    - i_<ddd>        intervention index
+    - <name_str>     name of the speaker
+
+.. moduleauthor:: Manuel Berrocal <mbercas@gmail.com>
+
 """
+"""
+GNU General Public License v3.0
+Permissions of this strong copyleft license are conditioned on making available complete source code of licensed works and modifications, which include larger works using a licensed work, under the same license. Copyright and license notices must be preserved. Contributors provide an express grant of patent rights.
+"""
+
 
 
 import os, sys

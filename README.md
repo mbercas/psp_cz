@@ -32,11 +32,11 @@ The output directory can be specified with thee *-o* or *--output-directory* swi
 
 The output file format are text files, with names as follow:
 
-    s_[/d]\*3_<yyyymmdd>_b[/d]\*2_i[/d]\*3_<name_str>.txt
+    s_<ddd>_<yyyymmdd>_b<d+>_i_<ddd>_<name_str>.txt
          
-    - s_[/d]\*2      theee digits indicating the session
+    - s_<ddd>        theee digits indicating the session
     - <yyyymmdd>     date of the intervention
-    - b[/d]+         order of the day point index
-    - i_[/d]\*3      intervention index
+    - b<d+>          order of the day point index
+    - i_<ddd>        intervention index
     - <name_str>     name of the speaker
 
