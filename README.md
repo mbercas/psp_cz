@@ -1,14 +1,9 @@
 # psp.cz steno downloader
-A Python web crawler to download the steno-types of the Czech parliament
+A Python web crawler to download the steno-types of the Czech parliament and some tools to organize the data
 
 ## Download stenos
-Currently requires manual configuration of the output directory and start web-page
+A Python web crawler that gets all the steno protocols from a given parlamentary season and stores them as text files with the corresponding metadata.
 
-   WARNING: I have tried to limit the number of access to the web page
-            but nevertheless this project may be accessing the web
-            page very often, please do not overuse.
-            
-Future improvements planned is to limit the access rate to the page.
 
 ### Requirements
  - python3        // tested with 3.6
@@ -32,7 +27,7 @@ Future improvements planned is to limit the access rate to the page.
 
 The output directory can be specified with thee *-o* or *--output-directory* switch, if not specified all ouput will be written to the current directory.
 
-The output file format are text files, with names as follow:
+The steno protocols get stored as utf-8 text files, the name convention for the files is as follows, each file represents an individual intervention:
 
     s_<ddd>_<yyyymmdd>_t_<ddd>_i_<ddd>_<name_str>.txt
          
@@ -42,3 +37,36 @@ The output file format are text files, with names as follow:
     - i_<ddd>        intervention index
     - <name_str>     name of the speaker
 
+The metadata is stored in another file, the fields are separated by TABS, the first column enumerates the fields and each row contains the metadata for one of the generated text files.
+
+  ```session	date	topic_idx	topic_str	order	name	file_name```
+
+## Generate Pandas data frame
+
+The generate_pandas script combines the text files and the medatata into a single Pandas data frame. The dataframe is stored as a compressed pickle that can be easily loaded with a single command
+
+~~~~~~~~~~{.py}
+    import pandas as pd
+
+    df = pd.read_pickle("pickle_file_name.pkl.xz", compression='xz')
+~~~~~~~~~~
+
+### Requirements
+
+  - Pandas
+
+### Usage
+
+usage: generate_pandas.py [-h] [-i INPUT_DIRECTORY] [-o OUTPUT_DIRECTORY]
+                          [-f OUTPUT_FILE_NAME]
+
+Download steno-protocols in psp.cz
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -i INPUT_DIRECTORY, --input-dir INPUT_DIRECTORY
+                        output directory
+  -o OUTPUT_DIRECTORY, --output-dir OUTPUT_DIRECTORY
+                        output directory
+  -f OUTPUT_FILE_NAME, --output-filename OUTPUT_FILE_NAME
+                        output file name
