@@ -253,20 +253,23 @@ class SessionParser:
 
             for topic_id, topic in self.topics.items():
                 for idx, intervention in enumerate(topic):
-                    steno = self.stenos[intervention[1]][intervention[2]]
-                    file_name = self.generate_file_name(intervention[3],
-                                                        topic_id,
-                                                        idx+1,
-                                                        steno[0])
-                    tsv_line = "{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
-                        self.session_number,
-                        intervention[3],
-                        topic_id,
-                        self.topic_titles[topic_id],
-                        idx+1,
-                        steno[0],
-                        file_name)
-                    fd.write(tsv_line)
+                    try:
+                        steno = self.stenos[intervention[1]][intervention[2]]
+                        file_name = self.generate_file_name(intervention[3],
+                                                            topic_id,
+                                                            idx+1,
+                                                            steno[0])
+                        tsv_line = "{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
+                            self.session_number,
+                            intervention[3],
+                            topic_id,
+                            self.topic_titles[topic_id],
+                            idx+1,
+                            steno[0],
+                            file_name)
+                        fd.write(tsv_line)
+                    except KeyError:
+                        logging.error("Can not find key %s in steno %s; s_%d",intervention[2],intervention[1], self.session_number)
                     
  
     def generate_file_name(self, date_string, topic_id, order, name):
