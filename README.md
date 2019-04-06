@@ -25,6 +25,8 @@ Future improvements planned is to limit the access rate to the page.
         --index               generate an index for the files
         -o OUTPUT_DIRECTORY, --output-dir OUTPUT_DIRECTORY output directory
         -y YEAR, --year YEAR  session year (2013 or 2017), default 2017
+        -n, --new-report      creates a new report for data dowdloaded if already
+                              exists, otherwise creates a new one
 
 ### Output files
 
@@ -32,11 +34,11 @@ The output directory can be specified with thee *-o* or *--output-directory* swi
 
 The output file format are text files, with names as follow:
 
-    s_<ddd>_<yyyymmdd>_b<d+>_i_<ddd>_<name_str>.txt
+    s_<ddd>_<yyyymmdd>_t_<ddd>_i_<ddd>_<name_str>.txt
          
     - s_<ddd>        theee digits indicating the session
     - <yyyymmdd>     date of the intervention
-    - b<d+>          order of the day point index
+    - t_<ddd>        topic for order of the day point index
     - i_<ddd>        intervention index
     - <name_str>     name of the speaker
 

@@ -6,11 +6,11 @@
    :synopsis: Parses all the steneoprotocols of the parlament and creates
 text files tagged the following way
 
-    s_<ddd>_<yyyymmdd>_b<d+>_i_<ddd>_<name_str>.txt
+    s_<ddd>_<yyyymmdd>_b<ddd>_i_<ddd>_<name_str>.txt
          
     - s_<ddd>        theee digits indicating the session
     - <yyyymmdd>     date of the intervention
-    - b<d+>          order of the day point index
+    - t_<ddd>        order of the day point index
     - i_<ddd>        intervention index
     - <name_str>     name of the speaker
 
@@ -56,8 +56,6 @@ CzechMonths = {'ledna':1, 'února':2, 'března':3,'dubna':4,'května':5,
                'června':6,'července':7,'srpna':8, 'září':9,
                'října':10, 'listopadu':11, 'prosince':12 }
 
-    
-    
 
 def get_all_stenos(res):
     """Gets the content page of PSP and returns all the links to the prococols"""
@@ -79,7 +77,7 @@ class SessionParser:
         self.base_url = base_url
         self.sublinks = base_url + session_number + "schuz/"
         self.session_link = base_url + session_link
-        self.session_number = session_number
+        self.session_number = int(session_number)
         self.session_soup = None
         self.pages = {}    # pages link stenos and order them by topic
         self.stenos = {}
@@ -116,8 +114,9 @@ class SessionParser:
             if len(links) == 0:
                 continue
 
+            # Try to read id = 'b<number>' and remove the 'b'
             try:
-                topic_id = links[0]['id']
+                topic_id = int(links[0]['id'][1:])
             except KeyError:
                 logging.info("Ignoring: %s", links[0])
                 continue
@@ -215,15 +214,75 @@ class SessionParser:
                 try:
                     steno = self.stenos[intervention[1]][intervention[2]]
                     file_name = output_directory.joinpath(
-                        's_{0}_{1}_{2:0>2}_i_{3:0>2}_{4}.txt'.format(self.session_number,
-                                                                    intervention[3],
-                                                                    topic_id,
-                                                                    idx+1, steno[0]))    
+                        self.generate_file_name(intervention[3],
+                                                topic_id,
+                                                idx+1,
+                                                steno[0]))
+                    
                     with file_name.open('w', encoding = 'utf-8') as fd:
                         fd.write(steno[1])
                 except KeyError:
                     logging.error("Can not find key %s in steno %s",intervention[2],intervention[1])
+
+    def generate_report(self, output_directory, create_new_report):
+        """Generates a TSV file with the metadata for the text files generated
+         (TSV: TAB sepparated values)
+        :param output_directory pathlib.Path: path to the output directory
+        :param create_new_report boolean: indicates if a new report is created or
+                           if the report already exists if the data is appended to
+                           the existing one.
+        """
+        if not output_directory.exists():
+            output_directory.mkdir(parents=True)
+
+        csv_file = output_directory.joinpath("file_summary.tsv")
+
+        if not csv_file.exists():
+            create_new_report = True
+
+        if create_new_report:
+            open_str = 'w+'
+        else:
+            open_str = 'a+'
+
+        with csv_file.open(open_str) as fd:
+            tsv_line = "session\tdate\ttopic_idx\ttopic_str\torder\tname\tfile_name\n"
+
+            if create_new_report:
+                fd.write(tsv_line)
+
+            for topic_id, topic in self.topics.items():
+                for idx, intervention in enumerate(topic):
+                    steno = self.stenos[intervention[1]][intervention[2]]
+                    file_name = self.generate_file_name(intervention[3],
+                                                        topic_id,
+                                                        idx+1,
+                                                        steno[0])
+                    tsv_line = "{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
+                        self.session_number,
+                        intervention[3],
+                        topic_id,
+                        self.topic_titles[topic_id],
+                        idx+1,
+                        steno[0],
+                        file_name)
+                    fd.write(tsv_line)
+                    
  
+    def generate_file_name(self, date_string, topic_id, order, name):
+        """Generate the file name string
+        :param data_string str: a string containing the date
+        :param topic_id str: a string containing the topic id
+        :param order int: a number indicating the intervention ordor for the topic
+        :param name str: a string containing the speaker name
+        :rtype: a string containing the file name  
+        """
+        file_name = 's_{0:0>3}_{1}_t_{2:0>3}_i_{3:0>3}_{4}.txt'.format(self.session_number,
+                                                                 date_string,
+                                                                 topic_id,
+                                                                 order,
+                                                                 name)
+        return file_name
 
 
     def parse_sublink_order(self, order_id, sublink):
@@ -344,6 +403,10 @@ def parse_args():
     parser.add_argument('-y', '--year', action='store', default='2017',
                         dest='year',
                         help='session year (2013 or 2017)')
+    parser.add_argument('-n', '--new-report', action='store_true', default=False,
+                        dest='create_new_report',
+                        help='creates a new report for data dowdloaded if already '
+                            + 'exists, otherwise creates a new one')
                         
     args = parser.parse_args()
 
@@ -378,7 +441,7 @@ if __name__ == "__main__":
 
     
     m = re.compile('^([\d]+)schuz/index.htm$')
-    
+    create_new_report = args.create_new_report
     for link  in session_links:
         
         session_id = m.match(link)
@@ -389,4 +452,5 @@ if __name__ == "__main__":
         session = SessionParser(base_page_url, session_id.group(1), link)
         session.parse_session()
         session.generate_files(Path(args.output_directory))
-        break
+        session.generate_report(Path(args.output_directory), create_new_report)
+        create_new_report = False
