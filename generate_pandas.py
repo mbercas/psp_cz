@@ -62,6 +62,8 @@ class GeneratePandasDataFrame:
 
         self.df.loc[:,"text"] = pd.Series(txt, index=self.df.index)
         self.df.loc[:,"tokens"] = self.df["text"].apply(lambda x : len(x.split(sep=' ')))
+        self.df.loc[:,"date"] = self.df["date"].apply(lambda x : pd.to_datetime(x, format="%Y%m%d"))
+        
 
     def save_pickle(self):
 
@@ -77,7 +79,7 @@ class GeneratePandasDataFrame:
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Download steno-protocols in psp.cz')
+    parser = argparse.ArgumentParser(description='Combine stenos and metadata into a Pandas data frame')
     parser.add_argument('-i', '--input-dir',action='store', default='.',
                         dest='input_directory',
                         help='output directory')
