@@ -57,16 +57,16 @@ The generate_pandas script combines the text files and the medatata into a singl
 
 ### Usage
 
-usage: generate_pandas.py [-h] [-i INPUT_DIRECTORY] [-o OUTPUT_DIRECTORY]
-                          [-f OUTPUT_FILE_NAME]
+    usage: generate_pandas.py [-h] [-i INPUT_DIRECTORY] [-o OUTPUT_DIRECTORY]
+                              [-f OUTPUT_FILE_NAME]
 
-Download steno-protocols in psp.cz
+    Combine stenos and metadata into a Pandas data frame
 
-optional arguments:
-  -h, --help            show this help message and exit
-  -i INPUT_DIRECTORY, --input-dir INPUT_DIRECTORY
-                        output directory
-  -o OUTPUT_DIRECTORY, --output-dir OUTPUT_DIRECTORY
-                        output directory
-  -f OUTPUT_FILE_NAME, --output-filename OUTPUT_FILE_NAME
-                        output file name
+    optional arguments:
+      -h, --help             show this help message and exit
+      -i INPUT_DIRECTORY,  --input-dir INPUT_DIRECTORY
+                             output directory
+      -o OUTPUT_DIRECTORY, --output-dir OUTPUT_DIRECTORY
+                             output directory
+      -f OUTPUT_FILE_NAME, --output-filename OUTPUT_FILE_NAME
+                             output file name
