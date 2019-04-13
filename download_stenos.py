@@ -64,6 +64,17 @@ def get_all_stenos(res):
     return [l.get('href') for l in soup_main.find_all('a') if None != reg_ex_steno_main.search(l.get('href'))]
 
 
+def check_request(res):
+    """Returns False if the request failed"""
+    rc = True
+    if res.status_code == requests.codes.ok:
+        logging.info("Connected to page %s", steno_page_url)
+    else:
+        logging.error("Unable to open page: %s", steno_page_url)
+        rc = False
+    return rc
+
+
 class SessionParser:
 
     class Page:
@@ -84,6 +95,18 @@ class SessionParser:
         self.topics = {}
         self.topic_titles = {}
         self.interventions = {}
+        self.speakers = {}
+        self.request_counter = 0
+
+    def request(self, link):
+        """Manages the request to the link and collect statistis
+        :param link str: link to the page to request
+        :rtype str: the contents of the web page in a string"""
+        res = requests.get(link)
+        self.request_counter += 1
+        if False == check_request(res):
+            raise Exception()
+        return res
         
     def parse_session(self):
         """
@@ -99,10 +122,12 @@ class SessionParser:
         """
 
         logging.info("Parsing session %s", self.session_link)
-        
-        res = requests.get(self.session_link)
-        if False == check_request(res):
+
+        try:
+            res = self.request(self.session_link)
+        except Exception:
             return False
+        
         main_soup =  BeautifulSoup(res.text, 'html5lib')
         self.session_soup = main_soup
 
@@ -154,12 +179,14 @@ class SessionParser:
 
             for intervention in topic:
                 if intervention[1] not in self.stenos:
-                    link = self.sublinks + intervention[1] 
-                    res = requests.get(link)
-
-                    if False == check_request(res):
+                    link = self.sublinks + intervention[1]
+                    
+                    try:
+                        res = self.request(link)
+                    except Exception:
                         logging.error("Can not open steno page %s", link)
                         continue
+
                     soup =  BeautifulSoup(res.text, 'html5lib')
                     self.stenos[intervention[1]] = self.parse_steno(soup)
                     
@@ -301,9 +328,12 @@ class SessionParser:
 
         if page_idx not in self.pages:
             link = self.sublinks + sublink
-            res = requests.get(link)
-            if False == check_request(res):
+                        
+            try:
+                res = self.request(link)
+            except Exception:
                 return False
+
             page = self.Page()
             page.link = link
             page.content = res.text
@@ -381,17 +411,6 @@ class SessionParser:
         return (True, date)
 
 
-    
-def check_request(res):
-    """Returns False if the request failed"""
-    rc = True
-    if res.status_code == requests.codes.ok:
-        logging.info("Connected to page %s", steno_page_url)
-    else:
-        logging.error("Unable to open page: %s", steno_page_url)
-        rc = False
-    return rc
-
 def parse_args():
     """Parses and validates the command line arguments
     :rtype: argparser.args object
@@ -434,6 +453,7 @@ if __name__ == "__main__":
 
     
     res = requests.get(steno_page_url)
+
     if check_request(res) == False:
         logging.error("Can not connect to page: {}".format(steno_page_url))
         exit(-1)
@@ -445,7 +465,7 @@ if __name__ == "__main__":
     
     m = re.compile('^([\d]+)schuz/index.htm$')
     create_new_report = args.create_new_report
-    for link  in session_links:
+    for link  in session_links[0:1]:
         
         session_id = m.match(link)
         if session_id == None:
