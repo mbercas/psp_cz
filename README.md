@@ -8,6 +8,8 @@ A Python web crawler that gets all the steno protocols from a given parlamentary
 ### Requirements
  - python3        // tested with 3.6
  - python3-bs4    // beautiful-soup
+ - request        // connect to web pages
+ - html5lib       // html parser library
  
 ### Usage
 
@@ -27,6 +29,8 @@ A Python web crawler that gets all the steno protocols from a given parlamentary
 
 The output directory can be specified with thee *-o* or *--output-directory* switch, if not specified all ouput will be written to the current directory.
 
+#### Text files
+
 The steno protocols get stored as utf-8 text files, the name convention for the files is as follows, each file represents an individual intervention:
 
     s_<ddd>_<yyyymmdd>_t_<ddd>_i_<ddd>_<name_str>.txt
@@ -37,9 +41,17 @@ The steno protocols get stored as utf-8 text files, the name convention for the 
     - i_<ddd>        intervention index
     - <name_str>     name of the speaker
 
-The metadata is stored in another file, the fields are separated by TABS, the first column enumerates the fields and each row contains the metadata for one of the generated text files.
+#### Metadata files
 
-  ```session	date	topic_idx	topic_str	order	name	file_name```
+The metadata is stored in two files, the fields are separated by TABS, the first column enumerates the fields and each row contains the metadata for one of the generated text files.
+
+`file_summary.tsv`
+
+    session	date	topic_idx	topic_str	order	steno_name	file_name
+
+`speakers_summary.tsv`
+
+    name	titles	function	steno_name	sex   party   birthdate  web_page
 
 ## Generate Pandas data frame
 
