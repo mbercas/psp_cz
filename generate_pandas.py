@@ -18,7 +18,9 @@ from pathlib import Path
 import argparse
 
 import pandas as pd
+import numpy as np
 import sys
+import datetime
 
 class GeneratePandasDataFrame:
     def __init__(self, input_path, output_path, pickle_name="pickled_df"):
@@ -27,6 +29,7 @@ class GeneratePandasDataFrame:
         :param output_path pathlib.Path: path to output directory
         """
         self.df = None
+        self.names = None
         self.input_path = input_path
         self.output_path = output_path
         self.pickle_name = pickle_name
@@ -34,11 +37,16 @@ class GeneratePandasDataFrame:
     def read_summary(self):
         """Read the summary file in the input directory and create a data frame"""
 
-        summary_file = self.input_path / "file_summary.tsv"
+        files_summary = self.input_path / "file_summary.tsv"
+        names_summary = self.input_path / "speakers_summary.tsv"
 
-        with summary_file.open() as fd:
+        with files_summary.open() as fd:
             self.df = pd.read_csv(fd, sep='\t', header=0)
 
+        with names_summary.open() as fd:
+            self.names = pd.read_csv(fd, sep='\t', header=0)
+        
+            
     def read_file_contents(self):
 
         files = {x for x in self.input_path.iterdir() if x.suffix == '.txt'}
@@ -59,10 +67,51 @@ class GeneratePandasDataFrame:
                 print("Can not parse file: {}".format(file_name))
                 txt.append("")
 
-
+        
         self.df.loc[:,"text"] = pd.Series(txt, index=self.df.index)
         self.df.loc[:,"tokens"] = self.df["text"].apply(lambda x : len(x.split(sep=' ')))
         self.df.loc[:,"date"] = self.df["date"].apply(lambda x : pd.to_datetime(x, format="%Y%m%d"))
+        self.df.steno_name = self.df.steno_name.apply(lambda x : x.replace('_', ' '))
+        self.df.steno_name = self.df.steno_name.apply(lambda x : x.replace('  ', ' '))
+        self.names.birthdate = pd.to_datetime(self.names.birthdate)
+        self.names["age"] =  (round((self.df.date.max() - self.names.birthdate)/datetime.timedelta(days=365))).astype(int)
+
+        self.merge_names_information()
+
+
+    def merge_names_information(self):
+        """Create and populate new columns
+           - age
+           - sex
+           - titles
+           - function
+           - replace name with filtered one 
+           - 
+        """
+        self.df["age"] = 0
+        self.df["sex"] = ""
+        self.df["titles"] = ""
+        self.df["party"] = ""
+        
+        for nidx, steno_name in self.names.steno_name.iteritems():
+            idx = self.df.groupby('steno_name').groups[steno_name]
+            self.df.loc[idx,"age"] = self.names.loc[nidx,"age"]
+            self.df.loc[idx,"sex"] = self.names.loc[nidx,"sex"]
+            self.df.loc[idx,"name"] = self.names.loc[nidx,"name"]
+            self.df.loc[idx,"titles"] = self.names.loc[nidx,"titles"]
+            self.df.loc[idx,"party"] = self.names.loc[nidx,"party"]
+
+        
+
+    def transform_function(self, f):
+        """Transform female function titles into male for easy searching"""
+        if f[:6] == 'Poslan':
+            return 'Poslanec'
+        if f[:7] == 'Senátor':
+            return 'Senátor'
+        else:
+            return f
+
         
 
     def save_pickle(self):
@@ -104,11 +153,11 @@ if __name__ == "__main__":
 
     args = parse_args()
     
-    generator = GeneratePandasDataFrame( Path(args.input_directory),
-                                         Path(args.output_directory),
-                                         args.output_file_name)
+    gen = GeneratePandasDataFrame( Path(args.input_directory),
+                                   Path(args.output_directory),
+                                   args.output_file_name)
 
-    generator.read_summary()
-    generator.read_file_contents()
-    generator.save_pickle()
+    gen.read_summary()
+    gen.read_file_contents()
+    gen.save_pickle()
         

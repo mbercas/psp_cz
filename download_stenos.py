@@ -186,9 +186,9 @@ class SessionParser:
             if len(topic) == 0:
                 continue
 
-            for intervention in topic:
-                if intervention[1] not in self.stenos:
-                    link = self.sublinks + intervention[1]
+            for int_info in topic:
+                if int_info.stenopage not in self.stenos:
+                    link = self.sublinks + int_info.stenopage
                     
                     try:
                         res = self.request(link)
@@ -197,7 +197,7 @@ class SessionParser:
                         continue
 
                     soup =  BeautifulSoup(res.text, 'html5lib')
-                    self.stenos[intervention[1]] = self.parse_steno(soup)
+                    self.stenos[int_info.stenopage] = self.parse_steno(soup)
                     
     def parse_steno(self, steno):
         """Parse the steno text and generate a interventions dictionary
@@ -212,7 +212,7 @@ class SessionParser:
         # All paragraphs with text are justified
         text_paragraphs = steno.find_all('p', attrs={'align':'justify'})
         
-        for p in text_paragraphs:
+        for idx, p in enumerate(text_paragraphs):
             # ignore empty
             if p.text == '\xa0':
                 continue
@@ -235,7 +235,8 @@ class SessionParser:
                     speaker_link.extract()
                     
             text += self.filter_text(p.text)
-        interventions[r_id] = Intervention(stenoname=speaker, text=text, speaker_key=speaker_key)
+        if r_id != "":
+            interventions[r_id] = Intervention(stenoname=speaker, text=text, speaker_key=speaker_key)
         return interventions
 
 
@@ -279,10 +280,9 @@ class SessionParser:
                     figcaption =  soup.find_all("div", attrs={"class": "figcaption"})
 
                     if figcaption != []:
-                        text = figcaption[0].text
+                        text = self.filter_text(figcaption[0].text)
                         if "Zvolen" in text:
-                            figregex = re.compile(r"Narozen: ([\d]+)\..(\d+)\..(\d+).*Zvolen na kandidátce: (.*)$",
-                                              re.DOTALL)
+                            figregex = re.compile(r"Narozen.?: ([\d]+)\..(\d+)\..(\d+).*Zvolen.? na kandidátce: (.*)$")
                             figgs = figregex.search(text)
                             if figgs:
                                 group = figgs.groups()[3]
@@ -322,14 +322,14 @@ class SessionParser:
         male_strings = ["Poslanec", "Ministr", "Místopředseda", "Předseda", "Senátor"]
         female_strings = ["Poslankyně",  "Ministryně", "Členka", "Senátorka"]
         sex = ""
-        for male_string in male_strings:
-            if male_string in function:
-                sex = "Man"
+        for female_string in female_strings:
+            if female_string in function:
+                sex = "Woman"
                 break
         if sex == "":
-            for female_string in female_strings:
-                if female_string in function:
-                    sex = "Woman"
+            for male_string in male_strings:
+                if male_string in function:
+                    sex = "Man"
                     break
             
         
@@ -407,7 +407,7 @@ class SessionParser:
                                                             topic_id,
                                                             idx+1,
                                                             steno.stenoname)
-                        tsv_line = "{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
+                        tsv_line = "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
                             self.session_number,
                             int_info.date,
                             topic_id,
