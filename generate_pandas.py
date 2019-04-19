@@ -88,18 +88,24 @@ class GeneratePandasDataFrame:
            - replace name with filtered one 
            - 
         """
+        self.df["birthyear"] = 0
         self.df["age"] = 0
         self.df["sex"] = ""
         self.df["titles"] = ""
         self.df["party"] = ""
-        
+
+        grp = self.df.groupby('steno_name')
         for nidx, steno_name in self.names.steno_name.iteritems():
-            idx = self.df.groupby('steno_name').groups[steno_name]
-            self.df.loc[idx,"age"] = self.names.loc[nidx,"age"]
-            self.df.loc[idx,"sex"] = self.names.loc[nidx,"sex"]
-            self.df.loc[idx,"name"] = self.names.loc[nidx,"name"]
-            self.df.loc[idx,"titles"] = self.names.loc[nidx,"titles"]
-            self.df.loc[idx,"party"] = self.names.loc[nidx,"party"]
+            try:
+                idx = grp.groups[steno_name]
+                self.df.loc[idx,"birthyear"] = self.names.loc[nidx,"birthdate"].year
+                self.df.loc[idx,"age"] = 2019 - self.names.loc[nidx,"birthdate"].year
+                self.df.loc[idx,"sex"] = self.names.loc[nidx,"sex"]
+                self.df.loc[idx,"name"] = self.names.loc[nidx,"name"]
+                self.df.loc[idx,"titles"] = self.names.loc[nidx,"titles"]
+                self.df.loc[idx,"party"] = self.names.loc[nidx,"party"]
+            except KeyError:
+                print("KeyError: {}".format(steno_name))
 
         
 
@@ -114,15 +120,17 @@ class GeneratePandasDataFrame:
 
         
 
-    def save_pickle(self):
+    def save_tsv(self):
 
         if not self.output_path.exists():
             self.output_path.mkdir(parents = True)
 
 
-        self.df.to_pickle(
-            str(self.output_path.joinpath(self.pickle_name + '.pkl.xz')),
-            compression='xz')
+        self.df.to_csv(str(self.output_path.joinpath(self.pickle_name + '.tsv.xz')),
+                       encoding='utf-8',
+                       sep='\t',
+                       header=True,
+                       compression='xz')
 
         
 
@@ -159,5 +167,5 @@ if __name__ == "__main__":
 
     gen.read_summary()
     gen.read_file_contents()
-    gen.save_pickle()
+    gen.save_tsv()
         
