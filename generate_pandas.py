@@ -107,7 +107,11 @@ class GeneratePandasDataFrame:
             except KeyError:
                 print("KeyError: {}".format(steno_name))
 
-        
+        # Move the text column to the last column of the data frame
+        column_names = ['session', 'date', 'topic_idx', 'topic_str', 'order', 'name',
+                        'steno_name', 'file_name', 'tokens', 'birthyear', 'age', 'sex',
+                        'titles', 'party', 'text']
+        self.df = self.df[column_names]
 
     def transform_function(self, f):
         """Transform female function titles into male for easy searching"""
@@ -130,7 +134,8 @@ class GeneratePandasDataFrame:
                        encoding='utf-8',
                        sep='\t',
                        header=True,
-                       compression='xz')
+                       compression='xz',
+                       index=False)
 
         
 
