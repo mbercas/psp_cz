@@ -47,8 +47,19 @@ The metadata is stored in two files, the fields are separated by TABS, the first
 
 `file_summary.tsv`
 
-    session	date	topic_idx	topic_str	order	steno_name	file_name
+    session	date	topic_idx	topic_str	order   name	steno_name	file_name
 
 `speakers_summary.tsv`
 
     name	titles	function	steno_name	sex   party   birthdate  web_page
+
+
+NOTE: Some corrections in the `speakers_summary` and `file_summary` were required to make sure we could match the entries on both sets by steno_name 
+
+The `download_stenos.py` program tries to collect as much information as possible from the speakers but the speakers table is not perfect and some fields have been completed manually.
+
+  - not all the speakers have a birtday on their page (but most have a Wikipedia entry)
+  - some speakers have several roles
+  - some of the roles in the parliament [ministers](https://www.youtube.com/watch?v=w9XDUBDMNuk) have different spelling in their entries
+  - some women changed their surnames after chanding marrital status.
+
