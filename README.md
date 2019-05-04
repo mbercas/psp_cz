@@ -6,7 +6,7 @@ A bunch of tools to collect data from the Czech parlament and analize it.
 
 The first step in every data analysis project is to get the data. For this project we will organize the data in data frames. Since doing it by hand is time consuming (and most important very boring) we have constructed a web crawler to get the data.
 
-[psp_cz spider](downloading_data.md)
+[psp_cz spider](./doc/downloading_data.md)
 
 The collected data is already stored in the `data` directory.
 
