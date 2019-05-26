@@ -18,7 +18,7 @@ The generate_pandas script combines the text files and the medatata into a singl
 ~~~~~~~~~~{.py}
     import pandas as pd
 
-    df = pd.read_pickle('pickle_file_name.tsv.xz', delimiter='\t', compression='xz')
+    df = pd.read_csv('tsv_file_name.tsv.xz', delimiter='\t', compression='xz')
 ~~~~~~~~~~
 
 ### Requirements
