@@ -55,8 +55,6 @@ class MorphoditaNltkTokenizer(TokenizerI):
             #raise ValueError("Text field is empty")
             self._init()
             
-        print("tokenize " + "text")
-
         self._tokenize(text)
 
         return self.tok_words
