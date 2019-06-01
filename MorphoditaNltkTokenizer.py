@@ -65,7 +65,7 @@ class MorphoditaNltkTokenizer(TokenizerI):
 
         self._tokenize(text)
         
-        for sen in self.tok_sens:
+        for sen in self.tok_sents:
             yield sen
 
     

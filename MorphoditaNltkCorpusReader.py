@@ -26,6 +26,29 @@ class MorphoditaNltkCorpusReader(TaggedCorpusReader):
                                     word_tokenizer=tokenizer,
                                     sent_tokenizer=tokenizer)
 
+
+
+    def _words(self, fileids):
+        if type(fileids) == str:
+            fileids = [fileids]
+        for fileid in fileids:
+            for w in self.tokenizer.tokenize(self.raw(fileid)):
+                yield w
+        
+    def words(self, fileids):
+        return list(self._words(fileids))
+
+    def _sents(self, fileids):
+        if type(fileids) == str:
+            fileids = [fileids]
+        for fileid in fileids:
+            for s in self.tokenizer.tokenize_sents(self.raw(fileids)):
+                yield s
+
+    
+    def sents(self, fileids):
+        return list(self._sents(fileids))
+        
     def tagged_words(self, fileids):
         if type(fileids) == str:
             fileids = [fileids]
