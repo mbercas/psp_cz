@@ -11,7 +11,10 @@
 from nltk.tokenize.api import TokenizerI
 from ufal.morphodita import *
 from pathlib import Path
+import os
 
+DICT_FILENAME = os.path.join(os.path.dirname(__file__), 'czech-morfflex-161115.dict')
+TAGGER_FILENAME = os.path.join(os.path.dirname(__file__), 'czech-morfflex-pdt-161115.tagger')
 
 from nltk.corpus.reader import concat, TaggedCorpusReader
 
@@ -27,8 +30,8 @@ class MorphoditaNltkTokenizer(TokenizerI):
         # Set an encoding for the input strings.
         self.encoding = encoding
 
-        self.dict_path = 'czech-morfflex-161115.dict'
-        self.tagger_path = 'czech-morfflex-pdt-161115.tagger'
+        self.dict_path = DICT_FILENAME
+        self.tagger_path = TAGGER_FILENAME
 
        
         self.morpho = Morpho.load(self.dict_path)
