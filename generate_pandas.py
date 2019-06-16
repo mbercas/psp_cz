@@ -105,7 +105,7 @@ class GeneratePandasDataFrame:
                 self.df.loc[idx,"titles"] = self.names.loc[nidx,"titles"]
                 self.df.loc[idx,"party"] = self.names.loc[nidx,"party"]
             except KeyError:
-                print("KeyError: {}".format(steno_name))
+                print(f"KeyError: {steno_name}")
 
         # Move the text column to the last column of the data frame
         column_names = ['session', 'date', 'topic_idx', 'topic_str', 'order', 'name',
@@ -144,7 +144,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Combine stenos and metadata into a Pandas data frame')
     parser.add_argument('-i', '--input-dir',action='store', default='.',
                         dest='input_directory',
-                        help='output directory')
+                        help='input directory')
     parser.add_argument('-o', '--output-dir',action='store', default='.',
                         dest='output_directory',
                         help='output directory')
