@@ -30,6 +30,7 @@ import logging
 from bs4 import BeautifulSoup
 import requests
 import argparse
+
 from pathlib import Path
 from collections import namedtuple
 
@@ -104,15 +105,40 @@ class SessionParser:
         self.speakers = {}
         self.request_counter = 0
 
+        self.cache = Path('.') / '.cache'
+        if not self.cache.exists():
+            self.cache.mkdir(parents=True)
+
+
     def request(self, link):
         """Manages the request to the link and collect statistis
+
+        Before making a connection checks if the file can be retrieved
+        from cache.
+
         :param link str: link to the page to request
         :rtype str: the contents of the web page in a string"""
-        res = requests.get(link)
-        self.request_counter += 1
-        if False == check_request(res):
-            raise Exception()
-        return res
+
+        file_str = link.replace('http://public.psp.cz/eknih/', '')
+
+        cached_file_name = self.cache / file_str
+        text = ""
+
+        print(cached_file_name)
+        
+        if cached_file_name.exists():
+            text = cached_file_name.read_text(encoding='utf-8')
+        else:
+            res = requests.get(link)
+
+            self.request_counter += 1
+            if False == check_request(res):
+                raise Exception()
+
+            cached_file_name.parents[0].mkdir(parents=True, exist_ok=True)
+            cached_file_name.write_text(res.text, encoding='utf-8')
+            text = res.text
+        return text
         
     def parse_session(self):
         """
@@ -130,11 +156,11 @@ class SessionParser:
         logging.info("Parsing session %s", self.session_link)
 
         try:
-            res = self.request(self.session_link)
+            text = self.request(self.session_link)
         except Exception:
             return False
         
-        main_soup =  BeautifulSoup(res.text, 'html5lib')
+        main_soup =  BeautifulSoup(text, 'html5lib')
         self.session_soup = main_soup
 
         # All topics are between <p>...</p>
@@ -147,7 +173,7 @@ class SessionParser:
 
             # Try to read id = 'b<number>' and remove the 'b'
             try:
-                topic_id = int(links[0]['id'][1:])
+                topic_id = int(links[0]['name'][1:])
             except KeyError:
                 logging.info("Ignoring: %s", links[0])
                 continue
@@ -191,12 +217,12 @@ class SessionParser:
                     link = self.sublinks + int_info.stenopage
                     
                     try:
-                        res = self.request(link)
+                        text = self.request(link)
                     except Exception:
                         logging.error("Can not open steno page %s", link)
                         continue
 
-                    soup =  BeautifulSoup(res.text, 'html5lib')
+                    soup =  BeautifulSoup(text, 'html5lib')
                     self.stenos[int_info.stenopage] = self.parse_steno(soup)
                     
     def parse_steno(self, steno):
@@ -254,11 +280,11 @@ class SessionParser:
             
             if "https://www.vlada.cz/cz/" in key:
                 try:
-                    res = self.request(key)
+                    text = self.request(key)
                 except Exception:
                     logging.error("Failed retrieving info for {}", spealer.values().stenoname)
                     sys.exit(-1)
-                soup = BeautifulSoup(res.text, 'html5lib')
+                soup = BeautifulSoup(text, 'html5lib')
                 page_name = self.filter_text(soup.find('h1').text)
             elif "/sqw/detail.sqw" in key:
                 idx = regex.search(key)
@@ -268,12 +294,12 @@ class SessionParser:
                 
 
                     try:
-                        res = self.request(link)
+                        text = self.request(link)
                     except Exception:
                         logging.error("Failed retrieving info for {}", spealer.values().stenoname)
                         sys.exit(-1)
 
-                    soup = BeautifulSoup(res.text, 'html5lib')
+                    soup = BeautifulSoup(text, 'html5lib')
 
                     page_name = self.filter_text(soup.find('h1').text)
                 
@@ -485,14 +511,14 @@ class SessionParser:
             link = self.sublinks + sublink
                         
             try:
-                res = self.request(link)
+                text = self.request(link)
             except Exception:
                 return False
 
             page = self.Page()
             page.link = link
-            page.content = res.text
-            page.soup = BeautifulSoup(res.text, 'html5lib')
+            page.content = text
+            page.soup = BeautifulSoup(text, 'html5lib')
             (rc, date) = self.get_steno_date(page.soup)
             if False == rc:
                 logging.error("Can not find date in steno %s", link)
@@ -577,7 +603,7 @@ def parse_args():
                         help='output directory')
     parser.add_argument('-y', '--year', action='store', default='2017',
                         dest='year',
-                        help='session year (2013 or 2017)')
+                        help='session year (2010, 2013 or 2017)')
     parser.add_argument('-n', '--new-report', action='store_true', default=False,
                         dest='create_new_report',
                         help='creates a new report for data dowdloaded if already '
@@ -585,7 +611,7 @@ def parse_args():
                         
     args = parser.parse_args()
 
-    if args.year not in ["2013", "2017"]:
+    if args.year not in ["2010", "2013", "2017"]:
         print("Invalid session year, valid years are 2013 and 2017")
         logging.error("(): Invalid session year".format(args.year))
         sys.exit(-1)
@@ -594,11 +620,11 @@ def parse_args():
 
 if __name__ == "__main__":
 
-    #logging.basicConfig(filename='download_steno.log', level=logging.DEBUG)
+    logging.basicConfig(filename='download_steno.log', level=logging.DEBUG)
     
 
     args = parse_args()
-    year = args.year # 2013 or 2017
+    year = args.year # 2010, 2013 or 2017
 
     
     base_page_url = 'http://public.psp.cz/eknih/{}ps/stenprot/'.format(year)
@@ -619,8 +645,10 @@ if __name__ == "__main__":
     m = re.compile('^([\d]+)schuz/index.htm$')
     create_new_report = args.create_new_report
     request_counter = 0
-    for link in session_links:
-        
+    for idx, link in enumerate(session_links[1:3]):
+
+        print(f'id:{idx} - link: {link}')
+
         session_id = m.match(link)
         if session_id == None:
             logging.error("Can not get session number from link %s", link)
@@ -640,5 +668,6 @@ if __name__ == "__main__":
                                                                      request_counter))
         
         create_new_report = False
-    session.generate_speakers_report(Path(args.output_directory), speakers, create_new_report=True)
+    session.generate_speakers_report(Path(args.output_directory),
+                                     speakers, create_new_report=True)
 
