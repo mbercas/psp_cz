@@ -155,7 +155,8 @@ class SessionParser:
 
             # Try to read id = 'b<number>' and remove the 'b'
             try:
-                topic_id = int(links[0]['id'][1:])
+                print(links[0])
+                topic_id = int(links[0]['name'][1:])
             except KeyError:
                 logging.info("Ignoring: %s", links[0])
                 continue
