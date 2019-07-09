@@ -91,7 +91,9 @@ class SessionParser:
             self.content = ""
             self.soup = None
     
-    def __init__(self, base_url, session_number, session_link):
+    def __init__(self, year, base_url, session_number, session_link):
+        
+        self.year = year
         self.base_url = base_url
         self.sublinks = base_url + session_number + "schuz/"
         self.session_link = base_url + session_link
@@ -120,13 +122,13 @@ class SessionParser:
         :rtype str: the contents of the web page in a string"""
 
         file_str = link.replace('http://public.psp.cz/eknih/', '')
-
+        
         cached_file_name = self.cache / file_str
         text = ""
 
-        print(cached_file_name)
         
         if cached_file_name.exists():
+            print(f"{cached_file_name} ...reusing")
             text = cached_file_name.read_text(encoding='utf-8')
         else:
             res = requests.get(link)
@@ -139,32 +141,12 @@ class SessionParser:
             cached_file_name.write_text(res.text, encoding='utf-8')
             text = res.text
         return text
+
+
+    def parse_session_post_2013(self):
         
-    def parse_session(self):
-        """
-        The main page of the session contains all the links to all the subsessions,
-        they are ordered by topic (topics can be split in different days (i.e. so
-        they are stored in different pages), we will transverse the session following
-        the links in the session record (Schuz)
-
-        Returns False if ti fails processing the session (Schuz)
-
-        session -> topic -> intervention
-
-        """
-
-        logging.info("Parsing session %s", self.session_link)
-
-        try:
-            text = self.request(self.session_link)
-        except Exception:
-            return False
-        
-        main_soup =  BeautifulSoup(text, 'html5lib')
-        self.session_soup = main_soup
-
         # All topics are between <p>...</p>
-        for topic in main_soup.find_all('p'):
+        for topic in self.session_soup.find_all('p'):
             # topics have <a> id="<identifier>" name="<identifier>"</a>
             # and a set of links
             links = topic.find_all('a')
@@ -173,7 +155,7 @@ class SessionParser:
 
             # Try to read id = 'b<number>' and remove the 'b'
             try:
-                topic_id = int(links[0]['name'][1:])
+                topic_id = int(links[0]['id'][1:])
             except KeyError:
                 logging.info("Ignoring: %s", links[0])
                 continue
@@ -199,8 +181,76 @@ class SessionParser:
                         self.topics[topic_id].extend(self.interventions_info[q_id])
                 except KeyError:
                     continue
-                
-        # All links to interventions are not in self.interventions
+
+    def parse_session_pre_2013(self):
+        
+        # All topics are between <p>...</p>
+        for topic in self.session_soup.find_all('p'):
+            # topics have <a> id="<identifier>" name="<identifier>"</a>
+            # and a set of links
+            links = topic.find_all('a')
+            if len(links) == 0:
+                continue
+
+            # Try to read id = 'b<number>' and remove the 'b'
+            try:
+                topic_id = int(links[0]['name'][1:])
+            except KeyError:
+                logging.info("Ignoring: %s", links[0])
+                continue
+            
+            if topic_id not in self.topics:
+                self.topics[topic_id] = []
+                self.topic_titles[topic_id] = links[0].next_sibling.text
+            
+            
+            for link in links[1:]:
+                try:
+                    sublink = link['href']
+
+                    if "/sqw/historie.sqw" not in sublink:
+                        hash_id = self.get_hash_for_topic(sublink)
+                        if None == hash_id:
+                            logging.warning("Can not find hash in %s", sublink)
+                            continue
+                    else:
+                        continue
+
+                    if self.parse_sublink_order(hash_id, sublink):
+                        self.topics[topic_id].extend(self.interventions_info[hash_id])
+                except KeyError:
+                    continue
+    
+    
+    def parse_session(self):
+        """
+        The main page of the session contains all the links to all the subsessions,
+        they are ordered by topic (topics can be split in different days (i.e. so
+        they are stored in different pages), we will transverse the session following
+        the links in the session record (Schuz)
+
+        Returns False if ti fails processing the session (Schuz)
+
+        session -> topic -> intervention
+
+        """
+
+        logging.info("Parsing session %s", self.session_link)
+
+        try:
+            text = self.request(self.session_link)
+        except Exception:
+            return False
+        
+        main_soup =  BeautifulSoup(text, 'html5lib')
+        self.session_soup = main_soup
+
+        if self.year >= 2013:
+            self.parse_session_post_2013()
+        else:
+            self.parse_session_pre_2013()
+        
+        # All links to interventions are now in self.interventions
         # first download all individual pages into stenos dictionary
         #
         self.get_all_stenos()
@@ -498,18 +548,28 @@ class SessionParser:
 
     def parse_sublink_order(self, order_id, sublink):
 
-        reg_ex_page = re.compile('^(.*.html).*')
+        if self.year >= 2013:
+            reg_ex_page = re.compile('^(.*.html).*')
+        else:
+            reg_ex_page = re.compile('^.*schuz/(.*.html).*')
+            
         page_name = reg_ex_page.match(sublink)
-
+        
         if None == page_name:
             logging.error("Can not find page name in sublink %s", sublink)
             return False
 
-        page_idx = page_name.group(1)
+        if self.year >= 2013:
+            page_idx = page_name.group(1)
+        else:
+            page_idx = sublink
 
         if page_idx not in self.pages:
-            link = self.sublinks + sublink
-                        
+            if self.year >= 2013:
+                link = self.sublinks + sublink
+            else:
+                link = self.sublinks + page_name.group(1)
+
             try:
                 text = self.request(link)
             except Exception:
@@ -532,23 +592,28 @@ class SessionParser:
     def parse_interventions_page(self, page_soup, date):
         """Get a list of all the q tags and all the a links below"""
         a_links = page_soup.find_all('a')
-        
-        intervention_link = re.compile('^(s[\d]*.htm)#(r[\d]*)$')
+
+        if self.year >= 2013:
+            intervention_link = re.compile('^(s[\d]*.htm)#(r[\d]*)$')
+        else:
+            intervention_link = re.compile('^/eknih.*(s[\d]*.htm)#(r[\d]*)$')
         
         
         q_id = ""
         for link in a_links:
-            if link.has_attr('id'):
-                q_id = link['id']
+            if link.has_attr('name'):
+                q_id = link['name']
                 if q_id not in self.interventions_info:
                     self.interventions_info[q_id] = []
             elif link.has_attr('href') and q_id != "":
                 info = intervention_link.search(link['href'])
+
                 if None != info:
-                    self.interventions_info[q_id].append(InterventionInfo(pageref=info.group(0),
-                                                                          stenopage=info.group(1),
-                                                                          reftag=info.group(2),
-                                                                          date=date))
+                    self.interventions_info[q_id].append(
+                        InterventionInfo(pageref=info.group(0),
+                                         stenopage=info.group(1),
+                                         reftag=info.group(2),
+                                         date=date))
                 
 
     def get_qid_for_topic(self, link):
@@ -566,6 +631,20 @@ class SessionParser:
         
         return topic.group(1)
         
+    def get_hash_for_topic(self, link):
+        """
+        Find q# boundary <a id="\d>, then find all the
+        <a href="s[\d]6.html#r[\d]+ until the next q\d
+        for all the links get the page if not allready in
+        stenos and extract the text for a given person
+        """
+        reg_ex_topic = re.compile('^.*html#([\d]+)$')
+        topic  = reg_ex_topic.match(link)
+        if None == topic:
+            logging.warning("Could not find '#' topic separator in %s", link)
+            return None
+        
+        return topic.group(1)
                 
     def get_steno_date(self, soup):
         """Find metadata of the stenotype on the title.
@@ -645,7 +724,7 @@ if __name__ == "__main__":
     m = re.compile('^([\d]+)schuz/index.htm$')
     create_new_report = args.create_new_report
     request_counter = 0
-    for idx, link in enumerate(session_links[1:3]):
+    for idx, link in enumerate(session_links):
 
         print(f'id:{idx} - link: {link}')
 
@@ -654,7 +733,7 @@ if __name__ == "__main__":
             logging.error("Can not get session number from link %s", link)
             continue
         
-        session = SessionParser(base_page_url, session_id.group(1), link)
+        session = SessionParser(int(year), base_page_url, session_id.group(1), link)
         session.parse_session()
         session.parse_speakers()
         
