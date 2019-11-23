@@ -155,7 +155,6 @@ class SessionParser:
 
             # Try to read id = 'b<number>' and remove the 'b'
             try:
-                print(links[0])
                 topic_id = int(links[0]['name'][1:])
             except KeyError:
                 logging.info("Ignoring: %s", links[0])
@@ -700,7 +699,7 @@ def parse_args():
 
 if __name__ == "__main__":
 
-    logging.basicConfig(filename='download_steno.log', level=logging.DEBUG)
+    logging.basicConfig(filename='download_stenos.log', level=logging.DEBUG)
     
 
     args = parse_args()
