@@ -122,6 +122,8 @@ class GeneratePandasDataFrame:
         else:
             return f
 
+    def remove_duplicates(self):
+        self.df = self.df.drop_duplicates(['session', 'topic_idx', 'name', 'text'], keep='first')
         
 
     def save_tsv(self):
@@ -172,5 +174,6 @@ if __name__ == "__main__":
 
     gen.read_summary()
     gen.read_file_contents()
+    gen.remove_duplicates()
     gen.save_tsv()
         
