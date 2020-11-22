@@ -58,7 +58,7 @@ NOTE: Some corrections in the `speakers_summary` and `file_summary` were require
 
 The `download_stenos.py` program tries to collect as much information as possible from the speakers but the speakers table is not perfect and some fields have been completed manually.
 
-  - not all the speakers have a birtday on their page (but most have a Wikipedia entry)
+  - not all the speakers have a birthday on their page (but most have a Wikipedia entry)
   - some speakers have several roles
   - some of the roles in the parliament [ministers](https://www.youtube.com/watch?v=w9XDUBDMNuk) have different spelling in their entries
   - some women changed their surnames after chanding marrital status.
