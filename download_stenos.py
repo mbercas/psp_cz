@@ -58,7 +58,8 @@ CzechMonths = {'ledna':1, 'února':2, 'března':3,'dubna':4,'května':5,
 def get_all_stenos(res):
     """Gets the content page of PSP and returns all the links to the prococols"""
     soup_main = BeautifulSoup(res, 'html5lib')
-    reg_ex_steno_main = re.compile(r'^.*schuz.*htm$')
+    #reg_ex_steno_main = re.compile(r'^.*schuz.*htm[l]?$')
+    reg_ex_steno_main = re.compile(r'^.*schuz/')
     return [l.get('href') for l in soup_main.find_all('a') if None != reg_ex_steno_main.search(l.get('href'))]
 
 
@@ -221,6 +222,87 @@ class SessionParser:
                 except KeyError:
                     continue
 
+    def parse_session_2006(self):
+
+        # All topics are between <p>...</p>
+        for topic in self.session_soup.find_all('p'):
+            # topics have <a> name="<identifier>"</a>
+            # and a set of links
+            links = topic.find_all('a')
+            if len(links) == 0:
+                continue
+
+            # Try to read name = 'b<number>' and remove the 'b'
+            try:
+                topic_id = int(links[0]['name'][1:])
+            except KeyError:
+                logging.info("Ignoring: %s", links[0])
+                continue
+
+            if topic_id not in self.topics:
+                self.topics[topic_id] = []
+                self.topic_titles[topic_id] = links[0].next_sibling.text
+                # print(f"{self.topic_titles[topic_id]=} - {topic_id}")
+
+
+            for link in links[1:]:
+                try:
+                    sublink = link['href']
+
+                    if "/sqw/historie.sqw" not in sublink:
+                        hash_id = self.get_hash_for_topic(sublink)
+                        # print(f"{sublink=} -> {hash_id=}")
+                        if None == hash_id:
+                            logging.warning("Can not find hash in %s", sublink)
+                            continue
+                    else:
+                        continue
+
+                    if self.parse_sublink_order(hash_id, sublink):
+                        self.topics[topic_id].extend(self.interventions_info[hash_id])
+                except KeyError:
+                    continue
+
+
+    def parse_session_2006_b(self):
+
+        # All topics are between <p>...</p>
+
+        # topics have <a> id="<identifier>" name="<identifier>"</a>
+        # and a set of links
+        for link in self.session_soup.find_all('a'):
+            if len(link) == 0:
+                continue
+
+            # Try to read id = 'b<number>' and remove the 'b'
+            try:
+                topic_id = int(links[0]['name'][1:])
+            except KeyError:
+                logging.info("Ignoring: %s", links[0])
+                continue
+
+            if topic_id not in self.topics:
+                self.topics[topic_id] = []
+                self.topic_titles[topic_id] = links[0].next_sibling.text
+
+
+            for link in links[1:]:
+                try:
+                    sublink = link['href']
+
+                    if "/sqw/historie.sqw" not in sublink:
+                        q_id = self.get_qid_for_topic(sublink)
+                        if None == q_id:
+                            logging.warning("Can not find q_id in %s", sublink)
+                            continue
+                    else:
+                        continue
+
+                    if self.parse_sublink_order(q_id, sublink):
+                        self.topics[topic_id].extend(self.interventions_info[q_id])
+                except KeyError:
+                    continue
+
 
     def parse_session(self):
         """
@@ -247,8 +329,10 @@ class SessionParser:
 
         if self.year >= 2013:
             self.parse_session_post_2013()
-        else:
+        elif self.year == 2010:
             self.parse_session_pre_2013()
+        else:
+            self.parse_session_2006()
 
         # All links to interventions are now in self.interventions
         # first download all individual pages into stenos dictionary
@@ -593,14 +677,11 @@ class SessionParser:
         """Get a list of all the q tags and all the a links below"""
         a_links = page_soup.find_all('a')
 
-        if self.year >= 2013:
-            intervention_link = re.compile('^(s[\d]*.htm)#(r[\d]*)$')
-        else:
-            intervention_link = re.compile('^/eknih.*(s[\d]*.htm)#(r[\d]*)$')
-
+        intervention_link = re.compile('(s[\d]*.htm)#(r[\d]*)$')
 
         q_id = ""
         for link in a_links:
+            # print(f"{link}")
             if link.has_attr('name'):
                 q_id = link['name']
                 if q_id not in self.interventions_info:
@@ -724,20 +805,26 @@ if __name__ == "__main__":
     #
     session_links = get_all_stenos(res.text)
 
+    #base = set([link[:9]+"index.htm" for link in session_links])
 
+    #session_links = list(base) + session_links
+
+    #m = re.compile('^([\d]+)schuz/.+\.htm[l]?$')
     m = re.compile('^([\d]+)schuz/index.htm$')
     create_new_report = args.create_new_report
     request_counter = 0
     for idx, link in enumerate(session_links):
 
-        print(f'id:{idx} - link: {link}')
+        link += 'index.htm'
 
         session_id = m.match(link)
         if session_id == None:
             logging.error("Can not get session number from link %s", link)
             continue
 
+        print(f'id:{idx} - link: {link}')
         session = SessionParser(int(year), base_page_url, session_id.group(1), link)
+
         session.parse_session()
         session.parse_speakers()
 
