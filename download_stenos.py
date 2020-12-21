@@ -59,7 +59,7 @@ def get_all_stenos(res):
     """Gets the content page of PSP and returns all the links to the prococols"""
     soup_main = BeautifulSoup(res, 'html5lib')
     #reg_ex_steno_main = re.compile(r'^.*schuz.*htm[l]?$')
-    reg_ex_steno_main = re.compile(r'^.*schuz/')
+    reg_ex_steno_main = re.compile(r'^.*schuz/$')
     return [l.get('href') for l in soup_main.find_all('a') if None != reg_ex_steno_main.search(l.get('href'))]
 
 
@@ -80,8 +80,6 @@ Intervention = namedtuple('Intervention', ['stenoname', 'text', 'speaker_key'])
 Speaker = namedtuple('Speaker', ['stenoname', 'pagename', 'name', 'titles', 'function',
                                  'sex', 'group', 'birthdate'])
 
-
-speakers = {}
 
 class SessionParser:
 
@@ -107,6 +105,7 @@ class SessionParser:
         self.interventions_info = {}
         self.speakers = {}
         self.request_counter = 0
+        self.visited_links = {}
 
         self.cache = Path('.') / '.cache'
         if not self.cache.exists():
@@ -129,7 +128,7 @@ class SessionParser:
 
 
         if cached_file_name.exists():
-            print(f"{cached_file_name} ...reusing")
+            #print(f"{cached_file_name} ...reusing")
             text = cached_file_name.read_text(encoding='utf-8')
         else:
             res = requests.get(link)
@@ -241,7 +240,7 @@ class SessionParser:
 
             if topic_id not in self.topics:
                 self.topics[topic_id] = []
-                self.topic_titles[topic_id] = links[0].next_sibling.text
+                self.topic_titles[topic_id] = self.filter_text(links[0].next_sibling.text)
                 # print(f"{self.topic_titles[topic_id]=} - {topic_id}")
 
 
@@ -249,7 +248,7 @@ class SessionParser:
                 try:
                     sublink = link['href']
 
-                    if "/sqw/historie.sqw" not in sublink:
+                    if "/sqw/historie.sqw" not in sublink and "/ff/" not in sublink:
                         hash_id = self.get_hash_for_topic(sublink)
                         # print(f"{sublink=} -> {hash_id=}")
                         if None == hash_id:
@@ -260,46 +259,6 @@ class SessionParser:
 
                     if self.parse_sublink_order(hash_id, sublink):
                         self.topics[topic_id].extend(self.interventions_info[hash_id])
-                except KeyError:
-                    continue
-
-
-    def parse_session_2006_b(self):
-
-        # All topics are between <p>...</p>
-
-        # topics have <a> id="<identifier>" name="<identifier>"</a>
-        # and a set of links
-        for link in self.session_soup.find_all('a'):
-            if len(link) == 0:
-                continue
-
-            # Try to read id = 'b<number>' and remove the 'b'
-            try:
-                topic_id = int(links[0]['name'][1:])
-            except KeyError:
-                logging.info("Ignoring: %s", links[0])
-                continue
-
-            if topic_id not in self.topics:
-                self.topics[topic_id] = []
-                self.topic_titles[topic_id] = links[0].next_sibling.text
-
-
-            for link in links[1:]:
-                try:
-                    sublink = link['href']
-
-                    if "/sqw/historie.sqw" not in sublink:
-                        q_id = self.get_qid_for_topic(sublink)
-                        if None == q_id:
-                            logging.warning("Can not find q_id in %s", sublink)
-                            continue
-                    else:
-                        continue
-
-                    if self.parse_sublink_order(q_id, sublink):
-                        self.topics[topic_id].extend(self.interventions_info[q_id])
                 except KeyError:
                     continue
 
@@ -356,6 +315,8 @@ class SessionParser:
                         logging.error("Can not open steno page %s", link)
                         continue
 
+                    # All paragraphs with text are justified
+                    text=text.lower()
                     soup =  BeautifulSoup(text, 'html5lib')
                     self.stenos[int_info.stenopage] = self.parse_steno(soup)
 
@@ -369,26 +330,37 @@ class SessionParser:
         speaker = ""
         interventions = {}
 
-        # All paragraphs with text are justified
+
         text_paragraphs = steno.find_all('p', attrs={'align':'justify'})
+
+        # print(f">> {len(text_paragraphs)=}")
 
         for idx, p in enumerate(text_paragraphs):
             # ignore empty
             if p.text == '\xa0':
                 continue
             speaker_link = p.find('a')
+
+            # print(f" >> >> >> {speaker_link=}")
             if speaker_link and speaker_link.has_attr('id') and speaker_link.has_attr('href') and 'hlasy.sqw' not in speaker_link['href']:
+
                 if r_id != "":
                     interventions[r_id] = Intervention(stenoname=speaker, text=text, speaker_key=speaker_key)
                 text = ""
                 if speaker_link.has_attr('id') and 'hlasy.sqw' not in speaker_link['href']:
                     r_id = speaker_link['id']
+
+                    # some names have a : at the end - remove
+                    speaker_link_text = self.filter_text(speaker_link.text)
                     speaker_key = speaker_link['href']
-                    if speaker_link.text not in speakers:
-                        logging.info("New speaker found: %s", speaker_link.text)
-                        self.speakers[speaker_key] = Speaker(speaker_link.text, "", "", "", "", "", "", "")
-                    speaker = speaker_link.text.replace(' ', '_')
-                    speaker = speaker.replace(',', '_')
+
+                    if speaker_link_text[-1] == ":":
+                        speaker_link_text = speaker_link_text[:-1]
+                    if speaker_key not in self.speakers:
+                        logging.info("New speaker found: %s", speaker_link_text)
+                        self.speakers[speaker_key] = Speaker(speaker_link_text, "", "", "", "", "", "", "")
+                    speaker = speaker_link_text.replace(' ', '_')
+                    speaker = speaker.replace(',', '_').replace('__', '_')
 
                     speaker_link.extract()
                 else:
@@ -412,11 +384,14 @@ class SessionParser:
             birth_date = ""
             page_name = ""
 
+            if len(speaker.name) > 0:
+                continue
+
             if "https://www.vlada.cz/cz/" in key:
                 try:
                     text = self.request(key)
                 except Exception:
-                    logging.error("Failed retrieving info for {}", spealer.values().stenoname)
+                    logging.error("Failed retrieving info for {}", speaker.stenoname)
                     sys.exit(-1)
                 soup = BeautifulSoup(text, 'html5lib')
                 page_name = self.filter_text(soup.find('h1').text)
@@ -471,16 +446,25 @@ class SessionParser:
         """Uses the steno name and page name to extract the filtered name
            the function in the parliament and the title"""
 
-        common_strings = set(page_name.split()).intersection(set(steno_name.split()))
-        titles = page_name
-        function = steno_name
-        for common_string in common_strings:
-            titles = titles.replace(common_string, "").strip()
-            function = function.replace(common_string, "").strip()
-        name = page_name.replace(function, "").strip()
+        title_strings = set(["doc.", "Prof.", "RSDR.", "RSDr.", "RNDr.","Ing.", "JUDr.", "PhDr.", "Mgr.", "MBA", "ThMgr.", "CSc.",
+                             "PaedDr.", "Ph.D.", "MUDr.", "Bc.", "arch.", "Doc.", "MVDr.",
+                             "prof.", "MVDR.", "MgA.", "PhD.JU", "ThDr.", "PhD.", "DrSc.", "Dr."])
 
-        male_strings = ["Poslanec", "Ministr", "Místopředseda", "Předseda", "Senátor"]
-        female_strings = ["Poslankyně",  "Ministryně", "Členka", "Senátorka"]
+
+        titles = ""
+        page_name = page_name.replace(',', '').strip()
+        for title in title_strings:
+            if title in page_name:
+                titles += title + " "
+                page_name = page_name.replace(title, "").strip()
+        titles = titles.strip()
+
+        name = page_name
+        function = steno_name.replace(page_name.lower(), "").strip()
+
+
+        male_strings = ["Poslanec", "Ministr", "Místopředseda", "Předseda", "Senátor","poslanec", "ministr", "místopředseda", "předseda", "senátor"]
+        female_strings = ["Poslankyně",  "Ministryně", "Členka", "Senátorka", "Místopředsedkyně", "poslankyně",  "ministryně", "členka", "senátorka", "místopředsedkyně"]
         sex = ""
         for female_string in female_strings:
             if female_string in function:
@@ -496,6 +480,10 @@ class SessionParser:
         return (name, titles, function, sex)
 
     def filter_text(self, text):
+
+        if len(text) == 0:
+            return ""
+
         # remove : at beginning of paragraph
         if text[0] == ':':
             text = text[1:]
@@ -509,37 +497,9 @@ class SessionParser:
 
         return text
 
-    def generate_files(self, output_directory=Path('.')):
+    def generate_files_and_report(self, output_directory=Path('.'), create_new_report=True):
         """Iterate the topics dictionary to get all the intrventions per
         topic, then go to the stenos dictionary to print get intervention"""
-        if not output_directory.exists():
-            output_directory.mkdir(parents=True)
-
-
-        for topic_id, topic in self.topics.items():
-            for idx, int_info in enumerate(topic):
-                try:
-                    steno = self.stenos[int_info.stenopage][int_info.reftag]
-                    file_name = output_directory.joinpath(
-                        self.generate_file_name(int_info.date,
-                                                topic_id,
-                                                idx+1,
-                                                steno.stenoname))
-
-                    with file_name.open('w', encoding = 'utf-8') as fd:
-                        fd.write(steno.text)
-                except KeyError:
-                    logging.error("Can not find key %s in steno %s",
-                                  int_info.reftag, int_info.stenopage)
-
-    def generate_report(self, output_directory, create_new_report):
-        """Generates a TSV file with the metadata for the text files generated
-         (TSV: TAB sepparated values)
-        :param output_directory pathlib.Path: path to the output directory
-        :param create_new_report boolean: indicates if a new report is created or
-                           if the report already exists if the data is appended to
-                           the existing one.
-        """
         if not output_directory.exists():
             output_directory.mkdir(parents=True)
 
@@ -553,33 +513,58 @@ class SessionParser:
         else:
             open_str = 'a+'
 
-        with csv_file.open(open_str) as fd:
+        count = 0
+        with csv_file.open(open_str) as report_fd:
             tsv_line = "session\tdate\ttopic_idx\ttopic_str\torder\tname\tsteno_name\tfile_name\n"
 
             if create_new_report:
-                fd.write(tsv_line)
+                report_fd.write(tsv_line)
 
+            visited_links = {}
             for topic_id, topic in self.topics.items():
+                # print(f"{topic_id=} -> {len(topic)=}")
                 for idx, int_info in enumerate(topic):
                     try:
+                        if int_info.stenopage not in visited_links:
+                            visited_links[int_info.stenopage] = []
+                        else:
+                            if int_info.reftag in visited_links[int_info.stenopage]:
+                                logging.warning(f"GENERATE_FILES: Skipping already visitied {int_info.reftag} in steno {int_info.stenopage}")
+                                continue
+                            else:
+                                visited_links[int_info.stenopage].append(int_info.reftag)
+
                         steno = self.stenos[int_info.stenopage][int_info.reftag]
-                        file_name = self.generate_file_name(int_info.date,
-                                                            topic_id,
-                                                            idx+1,
-                                                            steno.stenoname)
-                        tsv_line = "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
-                            self.session_number,
-                            int_info.date,
-                            topic_id,
-                            self.topic_titles[topic_id],
-                            idx+1,
-                            self.speakers[steno.speaker_key].name,
-                            steno.stenoname,
-                            file_name)
-                        fd.write(tsv_line)
+                        # print(f"{steno.stenoname=}")
+                        file_name = output_directory.joinpath(
+                            self.generate_file_name(int_info.date,
+                                                    topic_id,
+                                                    idx+1,
+                                                    steno.stenoname))
+
+                        with file_name.open('w', encoding = 'utf-8') as fd:
+                            fd.write(steno.text)
+
+                            tsv_line = "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
+                                self.session_number,
+                                int_info.date,
+                                topic_id,
+                                self.topic_titles[topic_id],
+                                idx+1,
+                                self.speakers[steno.speaker_key].name,
+                                steno.stenoname,
+                                file_name)
+                            report_fd.write(tsv_line)
+
+
+                        count += 1
                     except KeyError:
-                        logging.error("Can not find key/tag %s in steno %s; s_%d",int_info.reftag,
-                                      int_info.stenopage, self.session_number)
+                        logging.error(f"GENERATE_FILES: Can not find key {int_info.reftag} in steno {int_info.stenopage}")
+
+                        #logging.error("Can not find key %s in steno %s",
+                        #              int_info.reftag, int_info.stenopage)
+        logging.info(f"GENERATE FILES: {count} files generated")
+
 
     def generate_speakers_report(self, output_directory, speakers, create_new_report):
         if not output_directory.exists():
@@ -690,11 +675,12 @@ class SessionParser:
                 info = intervention_link.search(link['href'])
 
                 if None != info:
-                    self.interventions_info[q_id].append(
-                        InterventionInfo(pageref=info.group(0),
+                    new_internvetion_info = InterventionInfo(pageref=info.group(0),
                                          stenopage=info.group(1),
                                          reftag=info.group(2),
-                                         date=date))
+                                         date=date)
+                    if new_internvetion_info not in self.interventions_info[q_id]:
+                        self.interventions_info[q_id].append(new_internvetion_info)
 
 
     def get_qid_for_topic(self, link):
@@ -749,13 +735,29 @@ class SessionParser:
         date = "{0}{1:0>2}{2:0>2}".format(d.group(3), CzechMonths[d.group(2)], int(d.group(1)))
         return (True, date)
 
+def filter_names_and_titles(name):
+    stop_words = ["PhDr.", "Ing.", "prof.", "JUDr." "RSDr.", "Mgr.",
+                  "arch.", "RNDr.", "MVDR.", "MgA.", "MUDr.", "ThDr.",
+                  "MBA", "doc." "CSc.", "PaedDr.", "Bc.", "PhD.", "DrSc.",
+                  "Ph.D."]
+    titles = ""
+    for word in stop_words:
+        pos = name.lower().find(word.lower())
+        if pos != -1:
+            titles += word + " "
+            name = name[:pos] + name[pos + len(word):]
+
+    name = name.replace(',', '')
+
+    return (name.strip(), titles.strip())
+
 
 def parse_args():
     """Parses and validates the command line arguments
     :rtype: argparser.args object
     """
 
-    valid_years = ["2006", "2010", "2013", "2017"]
+    valid_years = ["2002", "2006", "2010", "2013", "2017"]
 
     parser = argparse.ArgumentParser(description='Download steno-protocols in psp.cz')
     parser.add_argument('--index', action='store_true', default=False,
@@ -782,13 +784,14 @@ def parse_args():
 
     return args
 
+
 if __name__ == "__main__":
 
     logging.basicConfig(filename='download_stenos.log', level=logging.DEBUG)
 
 
     args = parse_args()
-    year = args.year # 2006, 2010, 2013 or 2017
+    year = args.year # 2002, 2006, 2010, 2013 or 2017
 
 
     base_page_url = 'http://public.psp.cz/eknih/{}ps/stenprot/'.format(year)
@@ -813,24 +816,28 @@ if __name__ == "__main__":
     m = re.compile('^([\d]+)schuz/index.htm$')
     create_new_report = args.create_new_report
     request_counter = 0
+    print(f"{len(session_links)=}")
+    session = None
+    speakers = {}
     for idx, link in enumerate(session_links):
 
         link += 'index.htm'
-
         session_id = m.match(link)
+        print(f'id:{idx} - link: {link}')
         if session_id == None:
             logging.error("Can not get session number from link %s", link)
             continue
 
-        print(f'id:{idx} - link: {link}')
         session = SessionParser(int(year), base_page_url, session_id.group(1), link)
+        session.speakers = speakers
 
         session.parse_session()
         session.parse_speakers()
 
         speakers = {**speakers, **session.speakers}  # requires python >=3.5
-        session.generate_files(Path(args.output_directory))
-        session.generate_report(Path(args.output_directory), create_new_report)
+        #session.generate_files(Path(args.output_directory))
+        #session.generate_report(Path(args.output_directory), create_new_report)
+        session.generate_files_and_report(Path(args.output_directory), create_new_report)
 
         request_counter += session.request_counter
         print("Completed session {}: accesses {} / cum. {}\n".format(session_id.group(1),
@@ -838,5 +845,6 @@ if __name__ == "__main__":
                                                                      request_counter))
 
         create_new_report = False
+
     session.generate_speakers_report(Path(args.output_directory),
-                                     speakers, create_new_report=True)
+                                     speakers, True)

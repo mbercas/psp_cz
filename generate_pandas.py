@@ -45,11 +45,11 @@ class GeneratePandasDataFrame:
 
         with names_summary.open() as fd:
             self.names = pd.read_csv(fd, sep='\t', header=0)
-        
-            
+
+
     def read_file_contents(self):
 
-        files = {x for x in self.input_path.iterdir() if x.suffix == '.txt'}
+        #files = {x for x in self.input_path.iterdir() if x.suffix == '.txt'}
         found_files = 0
 
         txt = []
@@ -60,21 +60,24 @@ class GeneratePandasDataFrame:
 
             if ifile.exists():
                 found_files += 1
-                      
+
                 with self.input_path.joinpath(file_name).open() as fd:
-                    txt.append( fd.readline() )
+                    fc = fd.readline()
+                    if fc[0] == ':':
+                        fc = fc[1:].strip()
+                    txt.append(fc)
             else:
                 print("Can not parse file: {}".format(file_name))
                 txt.append("")
 
-        
+
         self.df.loc[:,"text"] = pd.Series(txt, index=self.df.index)
         self.df.loc[:,"tokens"] = self.df["text"].apply(lambda x : len(x.split(sep=' ')))
         self.df.loc[:,"date"] = self.df["date"].apply(lambda x : pd.to_datetime(x, format="%Y%m%d"))
         self.df.steno_name = self.df.steno_name.apply(lambda x : x.replace('_', ' '))
         self.df.steno_name = self.df.steno_name.apply(lambda x : x.replace('  ', ' '))
-        self.names.birthdate = pd.to_datetime(self.names.birthdate)
-        self.names["age"] =  (round((self.df.date.max() - self.names.birthdate)/datetime.timedelta(days=365))).astype(int)
+        #self.names.birthdate = pd.to_datetime(self.names.birthdate)
+        #self.names["age"] =  (round((self.df.date.max() - self.names.birthdate)/datetime.timedelta(days=365))).astype(int)
 
         self.merge_names_information()
 
@@ -85,8 +88,8 @@ class GeneratePandasDataFrame:
            - sex
            - titles
            - function
-           - replace name with filtered one 
-           - 
+           - replace name with filtered one
+           -
         """
         self.df["birthyear"] = 0
         self.df["age"] = 0
@@ -98,14 +101,15 @@ class GeneratePandasDataFrame:
         for nidx, steno_name in self.names.steno_name.iteritems():
             try:
                 idx = grp.groups[steno_name]
-                self.df.loc[idx,"birthyear"] = self.names.loc[nidx,"birthdate"].year
-                self.df.loc[idx,"age"] = 2019 - self.names.loc[nidx,"birthdate"].year
+                #self.df.loc[idx,"birthyear"] = self.names.loc[nidx,"birthdate"].year
+                #self.df.loc[idx,"age"] = 2019 - self.names.loc[nidx,"birthdate"].year
                 self.df.loc[idx,"sex"] = self.names.loc[nidx,"sex"]
                 self.df.loc[idx,"name"] = self.names.loc[nidx,"name"]
                 self.df.loc[idx,"titles"] = self.names.loc[nidx,"titles"]
                 self.df.loc[idx,"party"] = self.names.loc[nidx,"party"]
             except KeyError:
-                print(f"KeyError: {steno_name}")
+                print(f"KeyError: {idx=} :: {steno_name=}")
+                print(f"KeyError: {self.df.loc[idx]=}")
 
         # Move the text column to the last column of the data frame
         column_names = ['session', 'date', 'topic_idx', 'topic_str', 'order', 'name',
@@ -124,7 +128,7 @@ class GeneratePandasDataFrame:
 
     def remove_duplicates(self):
         self.df = self.df.drop_duplicates(['session', 'topic_idx', 'name', 'text'], keep='first')
-        
+
 
     def save_tsv(self):
 
@@ -139,7 +143,7 @@ class GeneratePandasDataFrame:
                        compression='xz',
                        index=False)
 
-        
+
 
 
 def parse_args():
@@ -156,24 +160,23 @@ def parse_args():
 
     args = parser.parse_args()
 
-    ipath = Path(args.input_directory) 
+    ipath = Path(args.input_directory)
     if not ipath.exists() or not ipath.joinpath("file_summary.tsv").exists():
         print("Error: no tsv file in path: {}".format(str(args.input_directory)))
         sys.exit(-1)
 
     return args
-    
+
 
 if __name__ == "__main__":
 
     args = parse_args()
-    
-    gen = GeneratePandasDataFrame( Path(args.input_directory),
-                                   Path(args.output_directory),
-                                   args.output_file_name)
+
+    gen = GeneratePandasDataFrame(Path(args.input_directory),
+                                  Path(args.output_directory),
+                                  args.output_file_name)
 
     gen.read_summary()
     gen.read_file_contents()
     gen.remove_duplicates()
     gen.save_tsv()
-        
