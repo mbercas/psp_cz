@@ -221,46 +221,47 @@ class SessionParser:
                 except KeyError:
                     continue
 
+
     def parse_session_2006(self):
+        """
+        All topics start ia <a name="b >,
+        all links go below topic are of the form < a href=
+        """
+        links = self.session_soup.find_all('a')
+        reg_ex_topic = re.compile('^.*html#([\d]+)$')
 
-        # All topics are between <p>...</p>
-        for topic in self.session_soup.find_all('p'):
-            # topics have <a> name="<identifier>"</a>
-            # and a set of links
-            links = topic.find_all('a')
-            if len(links) == 0:
-                continue
-
+        topic_id = 0
+        for link in links:
+            # first find the topic
             # Try to read name = 'b<number>' and remove the 'b'
             try:
-                topic_id = int(links[0]['name'][1:])
-            except KeyError:
-                logging.info("Ignoring: %s", links[0])
-                continue
-
-            if topic_id not in self.topics:
-                self.topics[topic_id] = []
-                self.topic_titles[topic_id] = self.filter_text(links[0].next_sibling.text)
-                # print(f"{self.topic_titles[topic_id]=} - {topic_id}")
-
-
-            for link in links[1:]:
-                try:
-                    sublink = link['href']
-
-                    if "/sqw/historie.sqw" not in sublink and "/ff/" not in sublink:
-                        hash_id = self.get_hash_for_topic(sublink)
-                        # print(f"{sublink=} -> {hash_id=}")
-                        if None == hash_id:
-                            logging.warning("Can not find hash in %s", sublink)
-                            continue
-                    else:
-                        continue
-
-                    if self.parse_sublink_order(hash_id, sublink):
-                        self.topics[topic_id].extend(self.interventions_info[hash_id])
-                except KeyError:
+                topic_id = int(link['name'][1:])
+                if topic_id not in self.topics:
+                    self.topics[topic_id] = []
+                    self.topic_titles[topic_id] = self.filter_text(link.next_sibling.text)
+                    # print(f"{self.topic_titles[topic_id]=} - {topic_id}")
                     continue
+
+            except KeyError:
+                logging.debug("Ignoring: %s", link)
+
+
+            try:
+                sublink = link['href']
+
+                if None != reg_ex_topic.match(sublink):
+                    hash_id = self.get_hash_for_topic(sublink)
+                    # print(f"{sublink=} -> {hash_id=}")
+                    if None == hash_id:
+                        logging.warning("Can not find hash in %s", sublink)
+                        continue
+                else:
+                    continue
+
+                if self.parse_sublink_order(hash_id, sublink):
+                    self.topics[topic_id].extend(self.interventions_info[hash_id])
+            except KeyError:
+                continue
 
 
     def parse_session(self):
@@ -536,13 +537,13 @@ class SessionParser:
 
                         steno = self.stenos[int_info.stenopage][int_info.reftag]
                         # print(f"{steno.stenoname=}")
-                        file_name = output_directory.joinpath(
-                            self.generate_file_name(int_info.date,
-                                                    topic_id,
-                                                    idx+1,
-                                                    steno.stenoname))
+                        file_name = self.generate_file_name(int_info.date,
+                                                            topic_id,
+                                                            idx+1,
+                                                            steno.stenoname)
+                        full_file_name = output_directory.joinpath(file_name)
 
-                        with file_name.open('w', encoding = 'utf-8') as fd:
+                        with full_file_name.open('w', encoding = 'utf-8') as fd:
                             fd.write(steno.text)
 
                             tsv_line = "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\n".format(
@@ -757,7 +758,7 @@ def parse_args():
     :rtype: argparser.args object
     """
 
-    valid_years = ["2002", "2006", "2010", "2013", "2017"]
+    valid_years = ["1998", "2002", "2006", "2010", "2013", "2017"]
 
     parser = argparse.ArgumentParser(description='Download steno-protocols in psp.cz')
     parser.add_argument('--index', action='store_true', default=False,
@@ -787,11 +788,11 @@ def parse_args():
 
 if __name__ == "__main__":
 
-    logging.basicConfig(filename='download_stenos.log', level=logging.DEBUG)
+    logging.basicConfig(filename='download_stenos.log', level=logging.INFO)
 
 
     args = parse_args()
-    year = args.year # 2002, 2006, 2010, 2013 or 2017
+    year = args.year # 1998, 2002, 2006, 2010, 2013 or 2017
 
 
     base_page_url = 'http://public.psp.cz/eknih/{}ps/stenprot/'.format(year)
