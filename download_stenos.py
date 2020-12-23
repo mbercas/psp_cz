@@ -205,7 +205,7 @@ class SessionParser:
                 if topic_id not in self.topics:
                     self.topics[topic_id] = []
                     self.topic_titles[topic_id] = self.filter_text(link.next_sibling.text)
-                    # print(f"{self.topic_titles[topic_id]=} - {topic_id}")
+                    logging.info(f"{self.topic_titles[topic_id]=} - {topic_id}")
                     continue
 
             except KeyError:

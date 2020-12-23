@@ -76,8 +76,8 @@ class GeneratePandasDataFrame:
         self.df.loc[:,"date"] = self.df["date"].apply(lambda x : pd.to_datetime(x, format="%Y%m%d"))
         self.df.steno_name = self.df.steno_name.apply(lambda x : x.replace('_', ' ').lower())
         self.df.steno_name = self.df.steno_name.apply(lambda x : x.replace('  ', ' '))
-        self.names.birthdate = pd.to_datetime(self.names.birthdate)
-        self.names["age"] =  (round((self.df.date.max() - self.names.birthdate)/datetime.timedelta(days=365))).astype(int)
+        #self.names.birthdate = pd.to_datetime(self.names.birthdate)
+        #self.names["age"] =  (round((self.df.date.max() - self.names.birthdate)/datetime.timedelta(days=365))).astype(int)
 
         self.merge_names_information()
 
@@ -101,8 +101,8 @@ class GeneratePandasDataFrame:
         for nidx, steno_name in self.names.steno_name.iteritems():
             try:
                 idx = grp.groups[steno_name.lower()]
-                self.df.loc[idx,"birthyear"] = self.names.loc[nidx,"birthdate"].year
-                self.df.loc[idx,"age"] = 2010 - self.names.loc[nidx,"birthdate"].year
+                #self.df.loc[idx,"birthyear"] = self.names.loc[nidx,"birthdate"].year
+                #self.df.loc[idx,"age"] = 2010 - self.names.loc[nidx,"birthdate"].year
                 self.df.loc[idx,"sex"] = self.names.loc[nidx,"sex"]
                 self.df.loc[idx,"name"] = self.names.loc[nidx,"name"]
                 self.df.loc[idx,"titles"] = self.names.loc[nidx,"titles"]
