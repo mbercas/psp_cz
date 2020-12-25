@@ -1,3 +1,5 @@
+
+
 #!/usr/bin/env python3
 
 """
@@ -79,7 +81,7 @@ def check_request(res):
 
 
 # Define some data types for collections of the data
-InterventionInfo = namedtuple('InterventionInfo', ['pageref', 'stenopage', 'reftag', 'date'])
+InterventionInfo = namedtuple('InterventionInfo', ['pageref', 'stenopage', 'reftag', 'steno_name', 'date'])
 Intervention = namedtuple('Intervention', ['stenoname', 'text', 'speaker_key'])
 Speaker = namedtuple('Speaker', ['stenoname', 'pagename', 'name', 'titles', 'function',
                                  'sex', 'group', 'birthdate'])
@@ -132,7 +134,7 @@ class SessionParser:
 
 
         if cached_file_name.exists():
-            #logging.debug(f"{cached_file_name} ...reusing")
+            logging.debug(f"{cached_file_name} ...reusing")
             text = cached_file_name.read_text(encoding='utf-8')
         else:
             res = requests.get(link)
@@ -205,7 +207,7 @@ class SessionParser:
                 if topic_id not in self.topics:
                     self.topics[topic_id] = []
                     self.topic_titles[topic_id] = self.filter_text(link.next_sibling.text)
-                    logging.info(f"{self.topic_titles[topic_id]=} - {topic_id}")
+                    logging.debug(f"{self.topic_titles[topic_id]=} - {topic_id}")
                     continue
 
             except KeyError:
@@ -281,7 +283,7 @@ class SessionParser:
                         continue
 
                     # All paragraphs with text are justified
-                    text=text.lower()
+                    text = text.lower()
                     soup =  BeautifulSoup(text, 'html5lib')
                     self.stenos[int_info.stenopage] = self.parse_steno(soup)
 
@@ -295,8 +297,25 @@ class SessionParser:
         speaker = ""
         interventions = {}
 
+        # remove the parts of the page that do not contain information
+        #soup.head.decompose()
+        #soup.find('div', id='header').decompose()
+        #soup.find('div', id='menu').decompose()
+        #soup.find('div', id='tools').decompose()
+        #soup.find('div', id='footer').decompose()
 
-        text_paragraphs = steno.find_all('p', attrs={'align':'justify'})
+        #[s.decompose() for s in soup.find_all('script')]
+
+
+        steno = steno.find("div", id='main-content')
+        [div.decompose() for div in steno.find_all("div")]
+
+        #remove all centered paragraphs - they contain headers
+        [p.decompose() for p in steno.find_all('p', attrs={'align':'center'})]
+
+        # aligned paragraphs do only exist after 1996
+        #text_paragraphs = steno.find_all('p', attrs={'align':'justify'})
+        text_paragraphs = steno.find_all('p')
 
         # print(f">> {len(text_paragraphs)=}")
 
@@ -307,25 +326,35 @@ class SessionParser:
             speaker_link = p.find('a')
 
             # print(f" >> >> >> {speaker_link=}")
-            if speaker_link and speaker_link.has_attr('id') and speaker_link.has_attr('href') and 'hlasy.sqw' not in speaker_link['href']:
+            #if speaker_link and speaker_link.has_attr('id') and speaker_link.has_attr('href') and 'hlasy.sqw' not in speaker_link['href']:
+            if speaker_link and speaker_link.has_attr('id'):
+                if speaker_link.has_attr('href') and 'hlasy.sqw' in speaker_link['href']:
+                    #text += self.filter_text(speaker_linkp.text)
+                    continue
 
                 if r_id != "":
                     interventions[r_id] = Intervention(stenoname=speaker, text=text, speaker_key=speaker_key)
                 text = ""
-                if speaker_link.has_attr('id') and 'hlasy.sqw' not in speaker_link['href']:
+                #if speaker_link.has_attr('id') and 'hlasy.sqw' not in speaker_link['href']:
+                if speaker_link.has_attr('id'):
                     r_id = speaker_link['id']
 
                     # some names have a : at the end - remove
                     speaker_link_text = self.filter_text(speaker_link.text)
-                    speaker_key = speaker_link['href']
+                    #speaker_key = speaker_link['href']
 
                     if speaker_link_text[-1] == ":":
                         speaker_link_text = speaker_link_text[:-1]
+
+                    speaker = speaker_link_text.replace(' ', '_')
+                    speaker = speaker.replace(',', '_').replace('__', '_')
+
+                    # old stenos have no href use steno name as key instead
+                    speaker_key = speaker
+
                     if speaker_key not in self.speakers:
                         logging.info("New speaker found: %s", speaker_link_text)
                         self.speakers[speaker_key] = Speaker(speaker_link_text, "", "", "", "", "", "", "")
-                    speaker = speaker_link_text.replace(' ', '_')
-                    speaker = speaker.replace(',', '_').replace('__', '_')
 
                     speaker_link.extract()
                 else:
@@ -487,7 +516,7 @@ class SessionParser:
 
             visited_links = {}
             for topic_id, topic in self.topics.items():
-                # print(f"{topic_id=} -> {len(topic)=}")
+                logging.debug(f"{topic_id=} -> {len(topic)=}")
                 for idx, int_info in enumerate(topic):
                     try:
                         if int_info.stenopage not in visited_links:
@@ -596,7 +625,7 @@ class SessionParser:
         if self.year >= 2010:
             page_idx = page_name.group(1)
         else:
-            page_idx = sublink
+            page_idx = page_name.group(1) #sublink
 
         if page_idx not in self.pages:
             if self.year >= 2010:
@@ -640,12 +669,14 @@ class SessionParser:
                 info = intervention_link.search(link['href'])
 
                 if None != info:
-                    new_internvetion_info = InterventionInfo(pageref=info.group(0),
-                                         stenopage=info.group(1),
-                                         reftag=info.group(2),
-                                         date=date)
-                    if new_internvetion_info not in self.interventions_info[q_id]:
-                        self.interventions_info[q_id].append(new_internvetion_info)
+                    steno_name = self.filter_text(link.text)
+                    new_intervention_info = InterventionInfo(pageref=info.group(0),
+                                                             stenopage=info.group(1),
+                                                             reftag=info.group(2),
+                                                             steno_name=steno_name,
+                                                             date=date)
+                    if new_intervention_info not in self.interventions_info[q_id]:
+                        self.interventions_info[q_id].append(new_intervention_info)
 
 
     def get_qid_for_topic(self, link):
@@ -722,7 +753,7 @@ def parse_args():
     :rtype: argparser.args object
     """
 
-    valid_years = ["1998", "2002", "2006", "2010", "2013", "2017"]
+    valid_years = ["1996", "1998", "2002", "2006", "2010", "2013", "2017"]
 
     parser = argparse.ArgumentParser(description='Download steno-protocols in psp.cz')
     parser.add_argument('--index', action='store_true', default=False,
@@ -752,11 +783,12 @@ def parse_args():
 
 if __name__ == "__main__":
 
-    logging.basicConfig(filename='download_stenos.log', level=logging.INFO)
-
+    #FORMAT = "[%(filename)s:%(lineno)s - %(funcName)20s() ] %(message)s"
+    FORMAT = "[%(lineno)s - %(funcName)20s() ] %(message)s"
+    logging.basicConfig(format=FORMAT, filename='download_stenos.log', level=logging.INFO)
 
     args = parse_args()
-    year = int(args.year) # 1998, 2002, 2006, 2010, 2013 or 2017
+    year = int(args.year) # 1996, 1998, 2002, 2006, 2010, 2013 or 2017
 
 
     if int(year) >= 2010:
@@ -806,7 +838,8 @@ if __name__ == "__main__":
         speakers = {**speakers, **session.speakers}  # requires python >=3.5
         #session.generate_files(Path(args.output_directory))
         #session.generate_report(Path(args.output_directory), create_new_report)
-        session.generate_files_and_report(Path(args.output_directory), create_new_report)
+        output_directory = Path(args.output_directory)
+        session.generate_files_and_report(output_directory, create_new_report)
 
         request_counter += session.request_counter
         print("Completed session {}: accesses {} / cum. {}\n".format(session_id.group(1),
