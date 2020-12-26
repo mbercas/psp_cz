@@ -312,6 +312,7 @@ class SessionParser:
 
         #remove all centered paragraphs - they contain headers
         [p.decompose() for p in steno.find_all('p', attrs={'align':'center'})]
+        [p.decompose() for p in steno.find_all('center')]
 
         # aligned paragraphs do only exist after 1996
         #text_paragraphs = steno.find_all('p', attrs={'align':'justify'})
@@ -330,6 +331,8 @@ class SessionParser:
             if speaker_link and speaker_link.has_attr('id'):
                 if speaker_link.has_attr('href') and 'hlasy.sqw' in speaker_link['href']:
                     #text += self.filter_text(speaker_linkp.text)
+                    continue
+                if speaker_link.text == "":
                     continue
 
                 if r_id != "":
@@ -753,7 +756,7 @@ def parse_args():
     :rtype: argparser.args object
     """
 
-    valid_years = ["1996", "1998", "2002", "2006", "2010", "2013", "2017"]
+    valid_years = ["1993", "1996", "1998", "2002", "2006", "2010", "2013", "2017"]
 
     parser = argparse.ArgumentParser(description='Download steno-protocols in psp.cz')
     parser.add_argument('--index', action='store_true', default=False,
@@ -788,7 +791,7 @@ if __name__ == "__main__":
     logging.basicConfig(format=FORMAT, filename='download_stenos.log', level=logging.INFO)
 
     args = parse_args()
-    year = int(args.year) # 1996, 1998, 2002, 2006, 2010, 2013 or 2017
+    year = int(args.year) # 1993, 1996, 1998, 2002, 2006, 2010, 2013 or 2017
 
 
     if int(year) >= 2010:
