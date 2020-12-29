@@ -14,6 +14,9 @@ The collected data is already stored in the `data` directory.
 
 The generate_pandas script combines the text files and the medatata into a single Pandas data frame. The dataframe is stored as a compressed tsv (TAB sepparated values) that can be easily loaded with a single command.
 
+GeneratePandas uses the metadata in the downloads directory, even though download_stenos.py tries to fill as much information as possible and correct errors in the downloaded data the metadata is far from perfect, corrected metadata files for each period can be found in the metadata directory.
+
+Also the metadata files are not checked for correcteness, in principle only the fields, session it, session name, topic, order, speaker name, speaker function, function, tokens and text are meant to be used.
 
 ~~~~~~~~~~{.py}
     import pandas as pd
