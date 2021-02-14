@@ -76,7 +76,7 @@ class GeneratePandasDataFrame:
         self.df.loc[:,"date"] = self.df["date"].apply(lambda x : pd.to_datetime(x, format="%Y%m%d"))
         self.df.steno_name = self.df.steno_name.apply(lambda x : x.replace('_', ' ').lower())
         self.df.steno_name = self.df.steno_name.apply(lambda x : x.replace('  ', ' '))
-        self.names.birthdate = pd.to_datetime(self.names.birthdate)
+        self.names.birthdate = pd.to_datetime(self.names.birthdate.astype(str), format="%Y%m%d")
         self.names["age"] =  (round((self.df.date.max() - self.names.birthdate)/datetime.timedelta(days=365))).astype(int)
 
         self.merge_names_information()
