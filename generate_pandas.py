@@ -71,11 +71,12 @@ class GeneratePandasDataFrame:
                 txt.append("")
 
 
-        self.df.loc[:,"text"] = pd.Series(txt, index=self.df.index)
+        self.df.loc[:,"text"] = pd.Series(txt, index=self.df.index, dtype=str)
         self.df.loc[:,"tokens"] = self.df["text"].apply(lambda x : len(x.split(sep=' ')))
         self.df.loc[:,"date"] = self.df["date"].apply(lambda x : pd.to_datetime(x, format="%Y%m%d"))
         self.df.steno_name = self.df.steno_name.apply(lambda x : x.replace('_', ' ').lower())
         self.df.steno_name = self.df.steno_name.apply(lambda x : x.replace('  ', ' '))
+        self.names.birthdate = self.names.birthdate.apply(lambda x : x.replace('-', ''))
         self.names.birthdate = pd.to_datetime(self.names.birthdate.astype(str), format="%Y%m%d")
         self.names["age"] =  (round((self.df.date.max() - self.names.birthdate)/datetime.timedelta(days=365))).astype(int)
 
