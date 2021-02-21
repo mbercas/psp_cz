@@ -163,6 +163,7 @@ class SessionParser:
             try:
                 topic_id = int(links[0]['id'][1:])
             except KeyError:
+                breakpoint()
                 logging.info("Ignoring: %s", links[0])
                 continue
 
@@ -188,6 +189,46 @@ class SessionParser:
                 except KeyError:
                     continue
 
+    def parse_session_2013(self):
+        """
+        All topics start ia <a name="b >,
+        all links go below topic are of the form < a href=
+        """
+        links = self.session_soup.find_all('a')
+        reg_ex_topic = re.compile('^.*html#(q[\d]+)$')
+
+        topic_id = 0
+        for link in links:
+            # first find the topic
+            # Try to read name = 'b<number>' and remove the 'b'
+            try:
+                topic_id = int(link['name'][1:].replace('b',''))
+                if topic_id not in self.topics:
+                    self.topics[topic_id] = []
+                    self.topic_titles[topic_id] = self.filter_text(link.next_sibling.text)
+                    logging.debug(f"{self.topic_titles[topic_id]=} - {topic_id}")
+                    continue
+
+            except KeyError:
+                logging.debug("Ignoring: %s", link)
+
+
+            try:
+                sublink = link['href']
+
+                if None != reg_ex_topic.match(sublink):
+                    hash_id = self.get_hash_for_topic(sublink)
+                    # print(f"{sublink=} -> {hash_id=}")
+                    if None == hash_id:
+                        logging.warning("Can not find hash in %s", sublink)
+                        continue
+                else:
+                    continue
+
+                if self.parse_sublink_order(hash_id, sublink):
+                    self.topics[topic_id].extend(self.interventions_info[hash_id])
+            except KeyError:
+                continue
 
 
     def parse_session_pre_2013(self):
@@ -203,7 +244,7 @@ class SessionParser:
             # first find the topic
             # Try to read name = 'b<number>' and remove the 'b'
             try:
-                topic_id = int(link['name'][1:])
+                topic_id = int(link['name'][1:].replace('b',''))
                 if topic_id not in self.topics:
                     self.topics[topic_id] = []
                     self.topic_titles[topic_id] = self.filter_text(link.next_sibling.text)
@@ -255,7 +296,9 @@ class SessionParser:
         main_soup =  BeautifulSoup(text, 'html5lib')
         self.session_soup = main_soup
 
-        if self.year >= 2013:
+        if self.year == 2013:
+            self.parse_session_2013()
+        elif self.year > 2013:
             self.parse_session_post_2013()
         else:
             self.parse_session_pre_2013()
@@ -344,7 +387,16 @@ class SessionParser:
 
                     # some names have a : at the end - remove
                     speaker_link_text = self.filter_text(speaker_link.text)
-                    #speaker_key = speaker_link['href']
+
+                    # old stenos have no href use steno name as key instead
+                    if self.year < 2013:
+                        speaker_key = speaker
+                    else:
+                        try:
+                            speaker_key = speaker_link['href']
+                        except:
+                            speaker_key = speaker
+
 
                     if speaker_link_text[-1] == ":":
                         speaker_link_text = speaker_link_text[:-1]
@@ -352,8 +404,6 @@ class SessionParser:
                     speaker = speaker_link_text.replace(' ', '_')
                     speaker = speaker.replace(',', '_').replace('__', '_')
 
-                    # old stenos have no href use steno name as key instead
-                    speaker_key = speaker
 
                     if speaker_key not in self.speakers:
                         logging.info("New speaker found: %s", speaker_link_text)
@@ -704,7 +754,10 @@ class SessionParser:
         for all the links get the page if not allready in
         stenos and extract the text for a given person
         """
-        reg_ex_topic = re.compile('^.*html#([\d]+)$')
+        if year == 2013:
+            reg_ex_topic = re.compile('^.*html(#[a-z][\d]+)$')
+        else:
+            reg_ex_topic = re.compile('^.*html#([\d]+)$')
         topic  = reg_ex_topic.match(link)
         if None == topic:
             logging.warning("Could not find '#' topic separator in %s", link)
