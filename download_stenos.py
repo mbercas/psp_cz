@@ -1,5 +1,3 @@
-
-
 #!/usr/bin/env python3
 
 """
@@ -39,11 +37,11 @@ from collections import namedtuple
 class SessionManager:
     __slots__ = ['valid', 'title', 'index', 'date', 'base_session_url']
     def __init__(self):
-        valid = False
-        index = ""
-        date  = ""
-        title = ""
-        base_session_url = ""
+        self.valid = False
+        self.index = ""
+        self.date  = ""
+        self.title = ""
+        self.base_session_url = ""
 
     def __str__(self):
         str_ = "Title: {}".format(self.title)
@@ -84,7 +82,7 @@ def check_request(res):
 InterventionInfo = namedtuple('InterventionInfo', ['pageref', 'stenopage', 'reftag', 'steno_name', 'date'])
 Intervention = namedtuple('Intervention', ['stenoname', 'text', 'speaker_key'])
 Speaker = namedtuple('Speaker', ['stenoname', 'pagename', 'name', 'titles', 'function',
-                                 'sex', 'group', 'birthdate'])
+                                 'sex', 'group', 'birthdate', 'link'])
 
 
 class SessionParser:
@@ -163,7 +161,6 @@ class SessionParser:
             try:
                 topic_id = int(links[0]['id'][1:])
             except KeyError:
-                breakpoint()
                 logging.info("Ignoring: %s", links[0])
                 continue
 
@@ -326,7 +323,7 @@ class SessionParser:
                         continue
 
                     # All paragraphs with text are justified
-                    text = text.lower()
+                    text = text #.lower()
                     soup =  BeautifulSoup(text, 'html5lib')
                     self.stenos[int_info.stenopage] = self.parse_steno(soup)
 
@@ -363,23 +360,26 @@ class SessionParser:
 
         # print(f">> {len(text_paragraphs)=}")
 
-        for idx, p in enumerate(text_paragraphs):
+        speaker_key = ""
+        for p in text_paragraphs:
             # ignore empty
-            if p.text == '\xa0':
+            if p.text == '\xa0' or p.text == '':
                 continue
+            
             speaker_link = p.find('a')
 
             # print(f" >> >> >> {speaker_link=}")
             #if speaker_link and speaker_link.has_attr('id') and speaker_link.has_attr('href') and 'hlasy.sqw' not in speaker_link['href']:
             if speaker_link and speaker_link.has_attr('id'):
-                if speaker_link.has_attr('href') and 'hlasy.sqw' in speaker_link['href']:
-                    #text += self.filter_text(speaker_linkp.text)
-                    continue
+                if speaker_link.has_attr('href'):
+                    if 'hlasy.sqw' in speaker_link['href']: #or "historie.sqw" in speaker_link['href']:
+                        #text += self.filter_text(speaker_linkp.text)
+                        continue
                 if speaker_link.text == "":
                     continue
 
                 if r_id != "":
-                    interventions[r_id] = Intervention(stenoname=speaker, text=text, speaker_key=speaker_key)
+                    interventions[r_id] = Intervention(stenoname=speaker, text=text.strip(), speaker_key=speaker_key)
                 text = ""
                 #if speaker_link.has_attr('id') and 'hlasy.sqw' not in speaker_link['href']:
                 if speaker_link.has_attr('id'):
@@ -389,33 +389,28 @@ class SessionParser:
                     speaker_link_text = self.filter_text(speaker_link.text)
 
                     # old stenos have no href use steno name as key instead
-                    if self.year < 2013:
-                        speaker_key = speaker
-                    else:
-                        try:
-                            speaker_key = speaker_link['href']
-                        except:
-                            speaker_key = speaker
-
 
                     if speaker_link_text[-1] == ":":
                         speaker_link_text = speaker_link_text[:-1]
 
-                    speaker = speaker_link_text.replace(' ', '_')
+                    speaker = speaker_link_text.strip().replace(' ', '_')
                     speaker = speaker.replace(',', '_').replace('__', '_')
 
+                    speaker_key = speaker
+                    try:
+                        speaker_page = speaker_link['href']
+                    except:
+                        speaker_page = ""                  
 
                     if speaker_key not in self.speakers:
                         logging.info("New speaker found: %s", speaker_link_text)
-                        self.speakers[speaker_key] = Speaker(speaker_link_text, "", "", "", "", "", "", "")
+                        self.speakers[speaker_key] = Speaker(speaker_link_text, "", "", "", "", "", "", "", speaker_page)
 
-                    speaker_link.extract()
-                else:
-                    speaker_link.extract()
+                speaker_link.extract()
 
-            text += self.filter_text(p.text)
+            text += self.filter_text(p.text.strip()) + "\n"
         if r_id != "":
-            interventions[r_id] = Intervention(stenoname=speaker, text=text, speaker_key=speaker_key)
+            interventions[r_id] = Intervention(stenoname=speaker, text=text.strip(), speaker_key=speaker_key)
         return interventions
 
 
@@ -434,25 +429,25 @@ class SessionParser:
             if len(speaker.name) > 0:
                 continue
 
-            if "https://www.vlada.cz/cz/" in key:
+            if "https://www.vlada.cz/cz/" in speaker.link:
                 try:
-                    text = self.request(key)
+                    text = self.request(speaker.link)
                 except Exception:
                     logging.error("Failed retrieving info for {}", speaker.stenoname)
                     sys.exit(-1)
                 soup = BeautifulSoup(text, 'html5lib')
                 page_name = self.filter_text(soup.find('h1').text)
-            elif "/sqw/detail.sqw" in key:
-                idx = regex.search(key)
+            elif "/sqw/detail.sqw" in speaker.link:
+                idx = regex.search(speaker.link)
                 if idx:
 
-                    link = "http://www.psp.cz/" + key
+                    link = "http://www.psp.cz/" + speaker.link
 
 
                     try:
                         text = self.request(link)
                     except Exception:
-                        logging.error("Failed retrieving info for {}", spealer.values().stenoname)
+                        logging.error("Failed retrieving info for {}", speaker.values().stenoname)
                         sys.exit(-1)
 
                     soup = BeautifulSoup(text, 'html5lib')
@@ -487,14 +482,15 @@ class SessionParser:
                                          function=function,
                                          sex=sex,
                                          group=group,
-                                         birthdate=birth_date)
+                                         birthdate=birth_date,
+                                         link=speaker.link)
 
     def get_speakers_name(self, page_name, steno_name):
         """Uses the steno name and page name to extract the filtered name
            the function in the parliament and the title"""
 
         title_strings = ["doc.", "Prof.", "RSDR.", "RSDr.", "RNDr.","Ing.", "JUDr.", "PhDr.", "Mgr.", "MBA", "ThMgr.", "CSc.",
-                             "PaedDr.", "Ph.D.", "MUDr.", "Bc.", "arch.", "Doc.", "MVDr.",
+                             "PaedDr.", "Ph.D.", "MUDr.", "Bc.", "arch.", "Doc.", "MVDr.", "Th"
                              "prof.", "MVDR.", "MgA.", "PhD.JU", "ThDr.", "PhD.", "DrSc.", "Dr."]
 
 
@@ -507,7 +503,7 @@ class SessionParser:
         titles = titles.strip()
 
         name = page_name
-        function = steno_name.replace(page_name.lower(), "").strip()
+        function = steno_name.replace(page_name, "").strip()
 
 
         male_strings = ["Poslanec", "Ministr", "Místopředseda", "Předseda", "Senátor","poslanec", "ministr", "místopředseda", "předseda", "senátor"]
@@ -533,7 +529,7 @@ class SessionParser:
 
         # remove : at beginning of paragraph
         if text[0] == ':':
-            text = text[1:]
+            text = text[1:].strip()
 
         # replace '\xa0' with space
         text = text.replace('\xa0', ' ')

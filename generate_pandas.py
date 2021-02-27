@@ -46,7 +46,6 @@ class GeneratePandasDataFrame:
         with names_summary.open() as fd:
             self.names = pd.read_csv(fd, sep='\t', header=0)
 
-
     def read_file_contents(self):
 
         #files = {x for x in self.input_path.iterdir() if x.suffix == '.txt'}
@@ -61,23 +60,28 @@ class GeneratePandasDataFrame:
             if ifile.exists():
                 found_files += 1
 
-                with self.input_path.joinpath(file_name).open() as fd:
-                    fc = fd.readline()
-                    if fc[0] == ':':
-                        fc = fc[1:].strip()
-                    txt.append(fc)
+                #with self.input_path.joinpath(file_name).open() as fd:
+                with ifile.open() as fd:
+                    tmp_txt = ""
+                    for line in fd.readlines():
+                        if line[0] == ':':
+                            line += line[1:].strip()
+                        tmp_txt += line
+                    txt.append(tmp_txt)
             else:
                 print("Can not parse file: {}".format(file_name))
                 txt.append("")
-
 
         self.df.loc[:,"text"] = pd.Series(txt, index=self.df.index)
         self.df.loc[:,"tokens"] = self.df["text"].apply(lambda x : len(x.split(sep=' ')))
         self.df.loc[:,"date"] = self.df["date"].apply(lambda x : pd.to_datetime(x, format="%Y%m%d"))
         self.df.steno_name = self.df.steno_name.apply(lambda x : x.replace('_', ' ').lower())
         self.df.steno_name = self.df.steno_name.apply(lambda x : x.replace('  ', ' '))
-        self.names.birthdate = pd.to_datetime(self.names.birthdate)
-        self.names["age"] =  (round((self.df.date.max() - self.names.birthdate)/datetime.timedelta(days=365))).astype(int)
+
+        if (not int == self.names.dtypes["birthdate"]) and (not float == self.names.dtypes["birthdate"]):
+            self.names.birthdate = self.names.birthdate.apply(lambda x : x.replace('-', ''))
+        self.names.birthdate = pd.to_datetime(self.names.birthdate, format="%Y%m%d")
+        self.names["age"] =  (round((self.df.date.max() - self.names.birthdate)/datetime.timedelta(days=365)))
 
         self.merge_names_information()
 
@@ -102,14 +106,14 @@ class GeneratePandasDataFrame:
             try:
                 idx = grp.groups[steno_name.lower()]
                 self.df.loc[idx,"birthyear"] = self.names.loc[nidx,"birthdate"].year
-                self.df.loc[idx,"age"] = 2010 - self.names.loc[nidx,"birthdate"].year
+                self.df.loc[idx,"age"] = self.names.loc[nidx,"age"]
                 self.df.loc[idx,"sex"] = self.names.loc[nidx,"sex"]
                 self.df.loc[idx,"name"] = self.names.loc[nidx,"name"]
                 self.df.loc[idx,"titles"] = self.names.loc[nidx,"titles"]
                 self.df.loc[idx,"party"] = self.names.loc[nidx,"party"]
             except KeyError:
-                print(f"KeyError: {idx=} :: {steno_name=}")
-                print(f"KeyError: {self.df.loc[idx]=}")
+                print(f"KeyError: {nidx=} :: {steno_name=}")
+                print(f"KeyError: {self.df.loc[nidx]=}")
 
         # Move the text column to the last column of the data frame
         column_names = ['session', 'date', 'topic_idx', 'topic_str', 'order', 'name',
@@ -144,6 +148,24 @@ class GeneratePandasDataFrame:
                        index=False)
 
 
+    def report_problems(self):
+        if not (self.df.sex.isnull() == False).all():
+            print("WARNING: Rows with NULL is sex field\n\n")
+            print(self.df[self.df.sex.isnull() == False])
+
+        if not (self.df.text.isnull() == False).all():
+            print("WARNING: Rows with NULL is text field\n\n")
+            print(self.df[self.df.text.isnull() == False])
+
+        if not ((self.df.birthyear == 0) == False).all():
+            print("WARNING: Missing birthyears\n\n")
+            print(set(self.df[self.df.birthyear == 0].steno_name))
+
+
+        if not (self.df.name.isnull() == False).all():
+            print("WARNING: names with NULL is text field\n\n")
+            print(self.df[self.df.name.isnull() == False])
+            
 
 
 def parse_args():
@@ -180,3 +202,4 @@ if __name__ == "__main__":
     gen.read_file_contents()
     gen.remove_duplicates()
     gen.save_tsv()
+    gen.report_problems()
