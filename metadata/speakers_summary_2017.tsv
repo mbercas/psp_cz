@@ -2,6 +2,7 @@ name	titles	function	steno_name	sex	party	birthdate	web_page
 Adam Kalous	Ing.	Poslanec	Poslanec Adam Kalous	Man	ANO2011	1979-10-06	/sqw/detail.sqw?id=6497
 Adam Vojtěch	Mgr. et Mgr.	Ministr zdravotnictví ČR	Ministr zdravotnictví ČR Adam Vojtěch	Man	ANO2011	1986-10-02	https://www.vlada.cz/cz/clenove-vlady/adam-vojtech-162061/
 Adam Vojtěch	Mgr. et Mgr.	Poslanec	Poslanec Adam Vojtěch	Man	ANO2011	1986-10-02	/sqw/detail.sqw?id=6491
+Adéla Šípová	Mgr.	senátorka	senátorka adéla šípová	Woman	Piráti	1980-11-22	senátorka_adéla šípová
 Alena Dernerová	MUDr.	Senátorka	Senátorka Alena Dernerová	Woman	NOPARTY	1958-09-13	/sqw/detail.sqw?id=6256
 Alena Gajdůšková	PaedDr.	Poslankyně	Poslankyně Alena Gajdůšková	Woman	ČSSD	1954-04-15	/sqw/detail.sqw?id=5703
 Alena Schillerová		Ministryně financí ČR	Ministryně financí ČR Alena Schillerová	Woman	ANO2011	1964-03-18	https://www.vlada.cz/cz/clenove-vlady/alena-schillerova-162051/
@@ -70,7 +71,6 @@ Jan Hamáček		Předsedající 	Předsedající Jan Hamáček	Man	ČSSD	1978-11-
 Jan Hamáček		místopředseda vlády ministr vnitra a ministr zahraničních věcí čr	místopředseda vlády ministr vnitra a ministr zahraničních věcí čr jan hamáček	Man	ČSSD	1978-11-04	místopředseda_vlády_ministr_vnitra_a_ministr_zahraničních_věcí_čr_jan_hamáček
 Jan Hamáček		místopředseda vlády ministr vnitra a ministr zahraničních věcí čr	místopředseda vlády čr ministr vnitra a ministr zahraničních věcí jan hamáček	Man	ČSSD	1978-11-04	místopředseda_vlády_ministr_vnitra_a_ministr_zahraničních_věcí_čr_jan_hamáček
 Jan Hamáček		předsedající	předsedající jan hamáček	Man	ČSSD	1978-11-04	předsedající_jan_hamáček
-Jiří Rusnok		čnb guvernér	guvernér čnb jiří rusnok	Man	NOPARTY	1960-01-01	čnb_jiří_rusnok
 Jan Horník	Ing.	Senátor	Senátor Jan Horník	Man	STAN	1954-03-19	/sqw/detail.sqw?id=5724
 Jan Hrnčíř	LL.M. MBA	Poslanec	Poslanec Jan Hrnčíř	Man	SPD	1977-05-01	/sqw/detail.sqw?id=6455
 Jan Jakob		poslanec	poslanec jan jakob	Man	TOP-09	1982-12-02	poslanec_jan_jakob
@@ -120,6 +120,7 @@ Jiří Kohoutek		Poslanec	Poslanec Jiří Kohoutek	Man	SPD	1964-11-26	/sqw/detai
 Jiří Mašek	MUDr.	Poslanec	Poslanec Jiří Mašek	Man	ANO2011	1958-07-16	/sqw/detail.sqw?id=6534
 Jiří Mihola	Mgr. Ph.D.	Poslanec	Poslanec Jiří Mihola	Man	KDU-ČSL	1972-06-01	/sqw/detail.sqw?id=6222
 Jiří Milek		Ministr zemědělství ČR	Ministr zemědělství ČR Jiří Milek	Man	ANO2011	1963-07-03	https://www.vlada.cz/cz/clenove-vlady/jiri-milek-162043/
+Jiří Rusnok		čnb guvernér	guvernér čnb jiří rusnok	Man	NOPARTY	1960-01-01	čnb_jiří_rusnok
 Jiří Strýček	Ing.	Poslanec	Poslanec Jiří Strýček	Man	ANO2011	1959-04-05	/sqw/detail.sqw?id=6515
 Jiří Valenta	PhDr. Ing. Mgr. et Mgr.	Poslanec	Poslanec Jiří Valenta	Man	KSČM	1965-12-28	/sqw/detail.sqw?id=6169
 Jiří Ventruba	MUDr. CSc.	Poslanec	Poslanec Jiří Ventruba	Man	ODS	1950-02-02	/sqw/detail.sqw?id=6493
