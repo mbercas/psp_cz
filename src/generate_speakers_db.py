@@ -16,21 +16,8 @@ import sys
 import re
 
 import pandas as pd
-from xml.etree.ElementTree import Element, SubElement, Comment, tostring
+from xml.etree.ElementTree import Element, SubElement, tostring
 from xml.dom import minidom
-
-
-
-
-periods = [("1993-1996", "../data/psp1993_1996.tsv.xz") ,
-           ("1996-1998", "../data/psp1996_1998.tsv.xz"),
-           ("1998-2002", "../data/psp1998_2002.tsv.xz"),
-           ("2002-2006", "../data/psp2002_2006.tsv.xz"),
-           ("2006-2010", "../data/psp2006_2010.tsv.xz"),
-           ("2010-2013", "../data/psp2010_2013.tsv.xz"),
-           ("2013-2017", "../data/psp2013_2017.tsv.xz"),
-           ("2017-2021", "../data/psp2017_2021.tsv.xz")]
-
 
 
 def get_input_datasets(input_directory: str) -> 'list[str]':
@@ -78,13 +65,13 @@ def get_speakers_dictionary(period_file_names: list) -> dict:
     periods = get_periods(period_file_names)
     for period_file, period_year in zip(period_file_names, periods):
         
-        psp = pd.read_csv(period_file, compression="xz", sep="\t", header=0)
+        psp = pd.read_csv(period_file, compression="xz", encoding='utf-8', sep="\t", header=0)
         groups = psp.groupby(["name", "birthyear"])
 
         # index is a tupple, [name, birthyear]
         for index, group in groups:
-            steno_names = set(group.steno_name)
-            roles = [get_role_from_steno_name(role, index[0]) for role in steno_names]
+            #steno_names = set(group.steno_name)
+            roles =   set(group["function"].apply(lambda x: x.lower()).values) #get_role_from_steno_name(role, index[0]) for role in steno_names]
 
             if index not in speakers:
                 speakers[index] = {"id": user_id,
@@ -116,7 +103,7 @@ def get_xml_element(speaker_dict: dict, periods: list) -> Element:
                                               'party': info[period]['party']})
                 for role_id, role in enumerate(sorted(info[period]['role'])):
                     r = SubElement(p, 'role', {'id': str(role_id+1)})
-                    r.text = role
+                    r.text = role      # add .title() if capitalization is needed
     return doc
 
 def parse_args():
@@ -141,8 +128,13 @@ def parse_args():
 
     return args
 
-def write_output_file( output_directory: str, output_file_name: str, xmlstr: str):
-    """Writes the output file in the specified path"""
+def write_output_file( output_directory: str, output_file_name: str, xmlstr: str) -> None:
+    """Writes the output file in the specified path
+
+       :param output_directory: `str` storing the path for the output directory
+       :param output_file_name: `str` storing the name of the file (with no extension)
+       :param xmlstr: `str` storing the contents of the file
+    """
 
     path = Path(output_directory)
     if not path.exists():
