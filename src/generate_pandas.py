@@ -82,6 +82,7 @@ class GeneratePandasDataFrame:
             self.names.birthdate = self.names.birthdate.apply(lambda x : x.replace('-', ''))
         self.names.birthdate = pd.to_datetime(self.names.birthdate, format="%Y%m%d")
         self.names["age"] =  (round((self.df.date.max() - self.names.birthdate)/datetime.timedelta(days=365)))
+        self.names["name"] = self.names.name.apply(lambda x: x.strip())
 
         self.merge_names_information()
 
@@ -95,6 +96,7 @@ class GeneratePandasDataFrame:
            - replace name with filtered one
            -
         """
+        self.df["function"] = ""
         self.df["birthyear"] = 0
         self.df["age"] = 0
         self.df["sex"] = ""
@@ -105,6 +107,7 @@ class GeneratePandasDataFrame:
         for nidx, steno_name in self.names.steno_name.iteritems():
             try:
                 idx = grp.groups[steno_name.lower()]
+                self.df.loc[idx, "function"] = self.names.loc[nidx, "function"]
                 self.df.loc[idx,"birthyear"] = self.names.loc[nidx,"birthdate"].year
                 self.df.loc[idx,"age"] = self.names.loc[nidx,"age"]
                 self.df.loc[idx,"sex"] = self.names.loc[nidx,"sex"]
@@ -117,7 +120,7 @@ class GeneratePandasDataFrame:
 
         # Move the text column to the last column of the data frame
         column_names = ['session', 'date', 'topic_idx', 'topic_str', 'order', 'name',
-                        'steno_name', 'file_name', 'tokens', 'birthyear', 'age', 'sex',
+                        'steno_name', 'function', 'file_name', 'tokens', 'birthyear', 'age', 'sex',
                         'titles', 'party', 'text']
         self.df = self.df[column_names]
 
