@@ -83,6 +83,7 @@ class GeneratePandasDataFrame:
         self.names.birthdate = pd.to_datetime(self.names.birthdate, format="%Y%m%d")
         self.names["age"] =  (round((self.df.date.max() - self.names.birthdate)/datetime.timedelta(days=365)))
         self.names["name"] = self.names.name.apply(lambda x: x.strip())
+        self.names["function"] = self.names.function.apply(lambda x: x.lower().strip())
 
         self.merge_names_information()
 
