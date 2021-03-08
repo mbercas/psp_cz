@@ -94,6 +94,7 @@ def get_xml_element(speaker_dict: dict, periods: list) -> Element:
     for index in sorted(speaker_dict.keys()):
         info = speaker_dict[index]
         sk = SubElement(doc, 'speaker', {'id': str(info["id"]),
+                                         'gender': info["sex"],
                                          'birth_year': str(index[1])})
         sk.text = index[0]
 
@@ -106,9 +107,34 @@ def get_xml_element(speaker_dict: dict, periods: list) -> Element:
                     r.text = role      # add .title() if capitalization is needed
     return doc
 
+
+def get_pandas_dataset(speaker_dict: dict, periods: list) -> pd.DataFrame:
+
+
+    tmp = []
+    for index in sorted(speaker_dict.keys()):
+        info = speaker_dict[index]
+        
+        subline = [index[0], info["id"], index[1], info["sex"]]
+        
+        for period in periods:
+            if period in info.keys():
+                for role in sorted(info[period]['role']):
+                    tmp.append(subline + [period, info[period]["party"], role])
+    
+    columns = ["name", "id", "birth_year", "sex", "period", "party", "role"]
+    return pd.DataFrame(tmp, columns=columns)
+
+                    
 def parse_args():
     """Parse arguments in command line and clean up"""
     parser = argparse.ArgumentParser(description='Create XML database with information from speakers in steno DataFrames')
+    parser.add_argument('-x', '--xml-format',action='store_true', default=False,
+                        dest='format_output_as_xml',
+                        help='output in XML format')
+    parser.add_argument('-t', '--tsv-format',action='store_true', default=False,
+                        dest='format_output_as_tsv',
+                        help='output in TSV format')
     parser.add_argument('-i', '--input-dir',action='store', default='.',
                         dest='input_directory',
                         help='input directory')
@@ -122,13 +148,23 @@ def parse_args():
     args = parser.parse_args()
 
     ipath = Path(args.input_directory)
+
+
+    if (not args.format_output_as_xml) and (not args.format_output_as_tsv):
+        print("Error select either XML or TSV output format")
+        sys.exit(-1)
+
+    if args.format_output_as_xml and args.format_output_as_tsv:
+        print("Error select only one of either XML or TSV output format")
+        sys.exit(-1)
+    
     if not ipath.exists():
         print("Error: no input directory: {}".format(str(args.input_directory)))
         sys.exit(-1)
 
     return args
 
-def write_output_file( output_directory: str, output_file_name: str, xmlstr: str) -> None:
+def write_output_xml_file(output_directory: str, output_file_name: str, xmlstr: str) -> None:
     """Writes the output file in the specified path
 
        :param output_directory: `str` storing the path for the output directory
@@ -143,6 +179,13 @@ def write_output_file( output_directory: str, output_file_name: str, xmlstr: str
     with open( path / (output_file_name + ".xml"),  "w") as f:
         f.write(xmlstr)
 
+
+def write_output_tsv_file(output_directory: str, output_file_name: str, df: pd.DataFrame) -> None:
+    path = Path(output_directory)
+    if not path.exists():
+        path.mkdir(parents=True)
+    
+    df.to_csv(str(path / (output_file_name + ".tsv")), sep="\t", encoding="utf-8")
     
 if __name__ == "__main__":
 
@@ -153,11 +196,14 @@ if __name__ == "__main__":
     periods = get_periods(input_datasets)
     speakers = get_speakers_dictionary(input_datasets)
 
-    doc =get_xml_element(speakers, periods)
 
-    xmlstr = minidom.parseString(tostring(doc)).toprettyxml(indent="  ")
-
-    write_output_file(args.output_directory, args.output_file_name, xmlstr)
+    if args.format_output_as_xml:
+        doc =get_xml_element(speakers, periods)
+        xmlstr = minidom.parseString(tostring(doc)).toprettyxml(indent="  ")
+        write_output_xml_file(args.output_directory, args.output_file_name, xmlstr)
+    else:
+        df = get_pandas_dataset(speakers, periods)
+        write_output_tsv_file(args.output_directory, args.output_file_name, df)
     
     
 

@@ -24,6 +24,6 @@ python generate_pandas.py -i ../psp2013_2017 -o ../data -f psp2013_2017
 cp ../metadata/speakers_summary_2017.tsv ../psp2017_2021/speakers_summary.tsv
 python generate_pandas.py -i ../psp2017_2021 -o ../data -f psp2017_2021
 
-python generate_speakers_db.py -i ../data -o ../data -f psp_steno_speakers_db
+python generate_speakers_db.py -i ../data -o ../data -x -f psp_steno_speakers_db
 
 python generate_corpus_input_files.py  -i ../data -o ../data/corpus_input -a
